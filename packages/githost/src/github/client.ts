@@ -44,6 +44,33 @@ export class GitHubClient implements GitHostClient {
     return { url: data.html_url, number: data.number };
   }
 
+  async listBranches(): Promise<string[]> {
+    const { data: repoInfo } = await this.octokit.repos.get({
+      owner: this.repo.owner,
+      repo: this.repo.repo,
+    });
+    const defaultBranch = repoInfo.default_branch;
+
+    const branches = await this.octokit.paginate(
+      this.octokit.repos.listBranches,
+      {
+        owner: this.repo.owner,
+        repo: this.repo.repo,
+        per_page: 100,
+      }
+    );
+    const names = branches.map((b) => b.name);
+
+    const idx = names.indexOf(defaultBranch);
+    if (idx > 0) {
+      names.splice(idx, 1);
+      names.unshift(defaultBranch);
+    } else if (idx === -1 && defaultBranch) {
+      names.unshift(defaultBranch);
+    }
+    return names;
+  }
+
   async addReviewComments(args: AddReviewCommentsArgs): Promise<void> {
     const { data: files } = await this.octokit.pulls.listFiles({
       owner: this.repo.owner,

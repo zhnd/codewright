@@ -56,7 +56,13 @@ export async function runImplement(
 ): Promise<ResolutionResult> {
   let reviewerFeedback: string | undefined;
   const attemptMemos: AttemptMemo[] = [];
-  let detectedBaseBranch: string | undefined;
+  // Caller-pinned base branch (e.g. from the Tapd trigger dialog) seeds
+  // detectedBaseBranch so the very first sample resets onto the right
+  // branch instead of whatever the sandbox happened to clone. Once set,
+  // subsequent resets keep the same target — the agent's own
+  // result.baseBranch never overrides a user pick.
+  const userBaseBranch = input.baseBranch;
+  let detectedBaseBranch: string | undefined = userBaseBranch;
 
   for (let round = 0; round < MAX_REVIEW_ROUNDS; round++) {
     const { startedStage: implementStage } = await main.updateTaskActivity({
@@ -84,7 +90,10 @@ export async function runImplement(
     );
 
     for (let sampleId = 1; sampleId <= samplesThisRound; sampleId++) {
-      if (sampleId > 1 || round > 0) {
+      // Sample 1 of round 0 normally skips reset (clean clone), but a
+      // user-pinned baseBranch forces an early reset so the agent works
+      // on the requested branch.
+      if (sampleId > 1 || round > 0 || userBaseBranch) {
         const reset = await sandboxInfra.resetSandboxActivity({
           state: ctx.sandboxState,
           ...(detectedBaseBranch ? { baseBranch: detectedBaseBranch } : {}),
@@ -141,6 +150,11 @@ export async function runImplement(
       const result = implementOut.result;
       if (!detectedBaseBranch) {
         detectedBaseBranch = result.baseBranch;
+      }
+      // If the caller pinned a base branch, override whatever the agent
+      // wrote so the PR opens against the user's chosen target.
+      if (userBaseBranch) {
+        result.baseBranch = userBaseBranch;
       }
 
       const filterResult = await sandboxInfra.filterCandidateActivity({

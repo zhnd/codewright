@@ -39,6 +39,13 @@ export interface GitHostClient {
 
   createPullRequest(args: CreatePullRequestArgs): Promise<PullRequestResult>;
   addReviewComments(args: AddReviewCommentsArgs): Promise<void>;
+  /**
+   * Branch names available on this repo. The default branch (when known)
+   * comes first so callers can use it as a sensible default in pickers.
+   * Pagination is handled internally — implementations cap the result at
+   * a few hundred branches to keep the response usable in a UI dropdown.
+   */
+  listBranches(): Promise<string[]>;
 }
 
 export interface GitCredentials {

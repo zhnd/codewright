@@ -79,6 +79,42 @@ export class CnbClient implements GitHostClient {
     return { url, number: num };
   }
 
+  async listBranches(): Promise<string[]> {
+    let defaultBranch: string | undefined;
+    try {
+      const head = await this.client.repo.git.head.get({ repo: this.repoPath });
+      defaultBranch = head?.name;
+    } catch {
+      // Some repos / token scopes may reject the head probe; fall back
+      // to "first branch wins" ordering rather than failing the picker.
+    }
+
+    const all: string[] = [];
+    const PAGE_SIZE = 100;
+    const MAX_PAGES = 5; // 500 branches is plenty for a UI dropdown
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const batch = await this.client.repo.git.branches.list({
+        repo: this.repoPath,
+        page,
+        page_size: PAGE_SIZE,
+      });
+      if (!batch || batch.length === 0) break;
+      for (const b of batch) all.push(b.name);
+      if (batch.length < PAGE_SIZE) break;
+    }
+
+    if (defaultBranch) {
+      const idx = all.indexOf(defaultBranch);
+      if (idx > 0) {
+        all.splice(idx, 1);
+        all.unshift(defaultBranch);
+      } else if (idx === -1) {
+        all.unshift(defaultBranch);
+      }
+    }
+    return all;
+  }
+
   async addReviewComments(args: AddReviewCommentsArgs): Promise<void> {
     const files = await this.client.repo.pulls.files.list({
       repo: this.repoPath,
