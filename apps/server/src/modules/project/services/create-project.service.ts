@@ -69,6 +69,12 @@ export class CreateProjectService {
       );
     }
 
+    if (input.npmrc) {
+      data.workflowConfig = {
+        secrets: { npmrc: encrypt(input.npmrc, getEncryptionKey()) },
+      };
+    }
+
     return this.prisma.project.create({ ...query, data });
   }
 }

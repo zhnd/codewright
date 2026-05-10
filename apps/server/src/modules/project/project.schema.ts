@@ -14,6 +14,14 @@ builder.prismaObject('Project', {
     hasCredentials: t.boolean({
       resolve: (project) => !!project.encryptedCredentials,
     }),
+    hasNpmrc: t.boolean({
+      resolve: (project) => {
+        const cfg = project.workflowConfig as {
+          secrets?: { npmrc?: string };
+        } | null;
+        return !!cfg?.secrets?.npmrc;
+      },
+    }),
     previewCommand: t.exposeString('previewCommand', { nullable: true }),
     previewPort: t.exposeInt('previewPort', { nullable: true }),
     previewReadyPattern: t.exposeString('previewReadyPattern', {

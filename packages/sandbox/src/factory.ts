@@ -24,6 +24,12 @@ export interface CreateSandboxOptions {
   gitUser?: GitUser;
   hooks?: SandboxHooks;
   workingDirectory?: string;
+  /**
+   * Project-supplied `.npmrc` content; written to the builder's
+   * `/root/.npmrc` before install commands run. Supports `${ENV_VAR}`
+   * interpolation (pnpm/npm read env at install time).
+   */
+  npmrc?: string;
   docker?: Omit<
     CreateDockerSandboxOptions,
     | 'source'
@@ -33,6 +39,7 @@ export interface CreateSandboxOptions {
     | 'gitUser'
     | 'hooks'
     | 'workingDirectory'
+    | 'npmrc'
   >;
 }
 
@@ -62,6 +69,7 @@ export async function createSandbox(
         gitUser: options.gitUser,
         hooks: options.hooks,
         workingDirectory: options.workingDirectory,
+        npmrc: options.npmrc,
         ...options.docker,
       });
     default: {

@@ -85,6 +85,29 @@ export class UpdateProjectService {
       );
     }
 
+    if (input.npmrc !== undefined && input.npmrc !== null) {
+      const existing =
+        (project.workflowConfig as {
+          secrets?: Record<string, string>;
+          [k: string]: unknown;
+        } | null) ?? {};
+      const nextSecrets: Record<string, string> = {
+        ...(existing.secrets ?? {}),
+      };
+      if (input.npmrc === '') {
+        delete nextSecrets.npmrc;
+      } else {
+        nextSecrets.npmrc = encrypt(input.npmrc, getEncryptionKey());
+      }
+      const { secrets: _omit, ...rest } = existing;
+      void _omit;
+      const merged: Record<string, unknown> = { ...rest };
+      if (Object.keys(nextSecrets).length > 0) {
+        merged.secrets = nextSecrets;
+      }
+      data.workflowConfig = merged as Prisma.InputJsonValue;
+    }
+
     return this.prisma.project.update({
       ...query,
       where: { id: input.id },

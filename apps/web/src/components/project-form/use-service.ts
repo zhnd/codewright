@@ -27,6 +27,7 @@ export function useService({
       name: defaultValues?.name ?? '',
       repositoryUrl: defaultValues?.repositoryUrl ?? '',
       authProvider: defaultValues?.authProvider ?? 'GITHUB',
+      npmrc: '',
       previewCommand: defaultValues?.previewCommand ?? '',
       previewPort: defaultValues?.previewPort ?? '',
       previewReadyPattern: defaultValues?.previewReadyPattern ?? '',
@@ -49,11 +50,22 @@ export function useService({
       const previewPort = values.previewPort
         ? Number(values.previewPort)
         : undefined;
+      // npmrc semantics: undefined = don't touch in update; '' = explicit clear;
+      // non-empty = upsert. In create mode we always send a value (omit if empty
+      // so the server doesn't write `{secrets:{}}`).
+      const npmrcRaw = values.npmrc;
+      const npmrc =
+        mode === 'edit'
+          ? (npmrcRaw ?? undefined)
+          : npmrcRaw && npmrcRaw.length > 0
+            ? npmrcRaw
+            : undefined;
       const payload = {
         name: values.name,
         repositoryUrl: values.repositoryUrl,
         authProvider: values.authProvider,
         credentials,
+        npmrc,
         previewCommand,
         previewPort,
         previewReadyPattern,

@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -34,6 +34,12 @@ interface EnsureRepoImageOptions {
   rawMaxAgeMs?: number;
   setupMaxAgeMs?: number;
   baseImage?: string;
+  /**
+   * Project-supplied `.npmrc` content. Written to the tier-2 builder's
+   * `/root/.npmrc` before install commands; hashed into the tier-2 tag so
+   * changes invalidate the install image but not tier-1.
+   */
+  npmrc?: string;
 }
 
 export interface EnsureRepoImageResult {
@@ -83,16 +89,19 @@ export async function ensureRepoImage(
   // what's inside the clone, so we probe by spinning a disposable container
   // from tier-1, running detectSetup, and hashing the result.
   const plan = await resolveSetupPlan(docker, rawTag);
+  const npmrcSuffix = options.npmrc
+    ? `-n${createHash('sha256').update(options.npmrc).digest('hex').slice(0, 8)}`
+    : '';
   const setupTag = plan.empty
     ? rawTag
-    : `${SETUP_REPO}:${repoHash}-${plan.setupHash}`;
+    : `${SETUP_REPO}:${repoHash}-${plan.setupHash}${npmrcSuffix}`;
 
   if (plan.empty) {
     return { imageTag: rawTag, setupPlan: plan, cacheHit: 'tier1' };
   }
 
   let cacheHit: 'tier2' | 'tier1' | 'cold' = 'cold';
-  await withLock(`${repoHash}-${plan.setupHash}`, async () => {
+  await withLock(`${repoHash}-${plan.setupHash}${npmrcSuffix}`, async () => {
     const age = await imageAge(docker, setupTag);
     if (age !== null && age <= setupMaxAgeMs) {
       cacheHit = 'tier2';
@@ -107,7 +116,7 @@ export async function ensureRepoImage(
       log.info({ setupTag, toolchain: plan.toolchain }, 'Tier-2 cold build');
     }
     cacheHit = 'cold';
-    await buildSetup(docker, rawTag, setupTag, plan);
+    await buildSetup(docker, rawTag, setupTag, plan, options);
   });
 
   return { imageTag: setupTag, setupPlan: plan, cacheHit };
@@ -271,10 +280,22 @@ async function buildSetup(
   docker: Docker,
   rawTag: string,
   setupTag: string,
-  plan: SetupPlan
+  plan: SetupPlan,
+  options: EnsureRepoImageOptions
 ): Promise<void> {
-  const builder = await startBuilder(docker, rawTag);
+  // Pass token + provider so DockerSandbox.exec injects TORIN_GIT_TOKEN into
+  // setup commands; pnpm/npm interpolate ${TORIN_GIT_TOKEN} from the
+  // user-supplied .npmrc at install time.
+  const builder = await startBuilder(
+    docker,
+    rawTag,
+    options.gitToken,
+    options.gitProvider
+  );
   try {
+    if (options.npmrc) {
+      await writeNpmrc(builder, options.npmrc);
+    }
     for (const command of plan.commands) {
       log.info({ command }, 'Running setup command');
       const result = await builder.exec(command, {
@@ -290,6 +311,29 @@ async function buildSetup(
     await commitBuilder(docker, builder, setupTag, TIER_SETUP);
   } finally {
     await builder.stop();
+  }
+}
+
+/**
+ * Drop a project-supplied `.npmrc` into the builder's `$HOME` so pnpm/npm
+ * pick it up during install. Heredoc delimiter is randomized to avoid
+ * collisions with user content; single-quoted to suppress shell expansion
+ * so `${TORIN_GIT_TOKEN}` and friends survive verbatim into the file.
+ * pnpm itself does the env-var substitution at install time.
+ */
+async function writeNpmrc(
+  builder: DockerSandbox,
+  content: string
+): Promise<void> {
+  const eof = `TORIN_NPMRC_EOF_${randomUUID().replace(/-/g, '')}`;
+  const result = await builder.exec(
+    `cat > /root/.npmrc <<'${eof}'\n${content}\n${eof}`,
+    { cwd: DEFAULT_WORKING_DIRECTORY, timeoutMs: 5_000 }
+  );
+  if (!result.success) {
+    throw new Error(
+      `Failed to write .npmrc: ${result.stderr || result.stdout}`
+    );
   }
 }
 

@@ -21,6 +21,12 @@ export interface CreateDockerSandboxOptions {
   /** Defaults to 'github' when omitted. */
   gitProvider?: GitHostProvider;
   gitUser?: GitUser;
+  /**
+   * Project-supplied `.npmrc` content. Written to the builder's
+   * `/root/.npmrc` before tier-2 install commands run; included in the
+   * tier-2 cache key so changes invalidate the install image.
+   */
+  npmrc?: string;
   hooks?: SandboxHooks;
   workingDirectory?: string;
   memoryMb?: number;
@@ -62,6 +68,7 @@ export async function createDockerSandbox(
     const result = await ensureRepoImage(docker, options.source, {
       gitToken,
       gitProvider,
+      npmrc: options.npmrc,
     });
     image = result.imageTag;
     fromCache = true;

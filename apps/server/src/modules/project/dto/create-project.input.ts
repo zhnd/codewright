@@ -13,6 +13,10 @@ export const CreateProjectInput = builder.inputType('CreateProjectInput', {
     credentials: t.string({
       description: 'Personal access token for the selected git host.',
     }),
+    npmrc: t.string({
+      description:
+        'Multi-line .npmrc content for private registries. Supports ${ENV_VAR} interpolation; use ${TORIN_GIT_TOKEN} to reference the project git token without writing it to disk.',
+    }),
     previewCommand: t.string({
       description:
         'Command to start the dev server (e.g. "pnpm dev"). When set, defect-resolution fixes boot-verify + expose a preview URL to the reviewer.',

@@ -3,6 +3,7 @@ import { defaultBotIdentity } from '@torin/githost';
 import { createSandbox, type SandboxState } from '@torin/sandbox';
 import { log } from '../logger.js';
 import { gitClientFor } from '../utils/git-context.js';
+import { npmrcFor } from '../utils/project-secrets.js';
 
 export interface CreateSandboxActivityOptions {
   /** Override the container image. When set, bypasses the repo cache. */
@@ -28,6 +29,7 @@ export async function createSandboxActivity(
   const gitProvider = client?.provider ?? 'github';
   const gitToken = client?.token;
   const gitUser = client?.botIdentity ?? defaultBotIdentity('github');
+  const npmrc = project ? (npmrcFor(project) ?? undefined) : undefined;
 
   const sandbox = await createSandbox({
     provider: 'docker',
@@ -41,6 +43,7 @@ export async function createSandboxActivity(
     gitUser,
     gitToken,
     gitProvider,
+    npmrc,
     docker: {
       image: options.image,
     },

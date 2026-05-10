@@ -27,6 +27,7 @@ export const projectSchema = z.object({
   repositoryUrl: z.string().url('Must be a valid URL'),
   authProvider: z.enum(AUTH_PROVIDERS),
   credentials: z.string().optional(),
+  npmrc: z.string().optional(),
   previewCommand: z.string().optional(),
   previewPort: z.string().optional(),
   previewReadyPattern: z.string().optional(),

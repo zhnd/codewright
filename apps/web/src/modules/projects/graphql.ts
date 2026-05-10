@@ -8,6 +8,7 @@ export const PROJECT_FIELDS = gql`
     authMethod
     authProvider
     hasCredentials
+    hasNpmrc
     previewCommand
     previewPort
     previewReadyPattern
@@ -47,6 +48,7 @@ export const CREATE_PROJECT = gql`
     $repositoryUrl: String!
     $authProvider: AuthProvider
     $credentials: String
+    $npmrc: String
     $previewCommand: String
     $previewPort: Int
     $previewReadyPattern: String
@@ -57,6 +59,7 @@ export const CREATE_PROJECT = gql`
         repositoryUrl: $repositoryUrl
         authProvider: $authProvider
         credentials: $credentials
+        npmrc: $npmrc
         previewCommand: $previewCommand
         previewPort: $previewPort
         previewReadyPattern: $previewReadyPattern
@@ -75,6 +78,7 @@ export const UPDATE_PROJECT = gql`
     $repositoryUrl: String
     $authProvider: AuthProvider
     $credentials: String
+    $npmrc: String
     $previewCommand: String
     $previewPort: Int
     $previewReadyPattern: String
@@ -86,6 +90,7 @@ export const UPDATE_PROJECT = gql`
         repositoryUrl: $repositoryUrl
         authProvider: $authProvider
         credentials: $credentials
+        npmrc: $npmrc
         previewCommand: $previewCommand
         previewPort: $previewPort
         previewReadyPattern: $previewReadyPattern

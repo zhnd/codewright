@@ -10,6 +10,10 @@ export const UpdateProjectInput = builder.inputType('UpdateProjectInput', {
     credentials: t.string({
       description: 'Personal access token for the selected git host.',
     }),
+    npmrc: t.string({
+      description:
+        'Multi-line .npmrc content for private registries. Pass an empty string to clear. Supports ${ENV_VAR} interpolation.',
+    }),
     previewCommand: t.string(),
     previewPort: t.int(),
     previewReadyPattern: t.string(),
