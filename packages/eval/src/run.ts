@@ -19,6 +19,7 @@ import { writeFileSync } from 'node:fs';
 import { prisma } from '@torin/database';
 import { loadSweBenchVerified } from './dataset.js';
 import { generateForInstance } from './generate.js';
+import { scoreWithSbCli } from './score.js';
 
 async function main(): Promise<void> {
   const limit = Number(process.env.SWE_LIMIT ?? process.argv[2] ?? 20);
@@ -81,14 +82,12 @@ async function main(): Promise<void> {
   console.log(
     `\nWrote ${lines.length} predictions (${withPatch} with a patch) → ${outPath}`
   );
-  console.log(
-    '\nScore in the cloud (needs SWEBENCH_API_KEY from swebench.com):'
-  );
-  console.log(
-    `  sb-cli submit swe-bench_verified test --predictions_path ${outPath} --run_id torin-run`
-  );
 
   await prisma.$disconnect();
+
+  // Score in the cloud (sb-cli via uvx). Prints resolved% itself; no-op
+  // with guidance when SWEBENCH_API_KEY / uv are missing.
+  scoreWithSbCli(outPath, `torin-${Date.now()}`);
 }
 
 main().catch((err) => {

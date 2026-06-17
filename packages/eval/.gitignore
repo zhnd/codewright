@@ -1,0 +1,4 @@
+# Eval run artifacts (generated; not source)
+predictions*.jsonl
+sb-cli-reports/
+.venv/
