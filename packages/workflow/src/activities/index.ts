@@ -1,6 +1,7 @@
 export { addPrReviewCommentsActivity } from './add-pr-review-comments.js';
 export { analyzeCodeActivity } from './analyze-code.js';
 export { analyzeDefectActivity } from './analyze-defect.js';
+export { applyOracleActivity } from './apply-oracle.js';
 export { checkPreconditionsActivity } from './check-preconditions.js';
 export { commitOracleActivity } from './commit-oracle.js';
 export { createPullRequestActivity } from './create-pull-request.js';

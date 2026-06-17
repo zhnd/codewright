@@ -103,6 +103,14 @@ export async function runImplement(
           ...(detectedBaseBranch ? { baseBranch: detectedBaseBranch } : {}),
         });
         detectedBaseBranch = reset.baseBranch;
+        // `git reset --hard origin/<base>` discarded the oracle commit
+        // from REPRODUCE. Restore it so THIS candidate is verified against
+        // the same reproduction the baseline established — otherwise FILTER
+        // runs only the pre-existing tests and `oracleVerified` is a false
+        // positive (see baseline-differential design).
+        if (oracle?.filePath && oracle.content !== undefined) {
+          await sandboxInfra.applyOracleActivity(ctx.sandboxState, oracle);
+        }
       }
 
       let preconditionViolations: string[] | undefined;
