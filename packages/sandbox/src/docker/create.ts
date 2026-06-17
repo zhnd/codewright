@@ -206,6 +206,10 @@ async function warmStart(
     );
   }
 
+  if (source.commit) {
+    await checkoutCommit(sandbox, source.commit);
+  }
+
   if (source.newBranch) {
     const checkout = await sandbox.exec(
       `git checkout -B ${shellArg(source.newBranch)}`,
@@ -219,7 +223,11 @@ async function warmStart(
   }
 
   log.debug(
-    { branch: targetBranch, newBranch: source.newBranch },
+    {
+      branch: targetBranch,
+      commit: source.commit,
+      newBranch: source.newBranch,
+    },
     'Warm start complete'
   );
 }
@@ -270,6 +278,10 @@ async function bootstrapFromScratch(
     );
   }
 
+  if (source.commit) {
+    await checkoutCommit(sandbox, source.commit);
+  }
+
   if (source.newBranch) {
     const checkout = await sandbox.exec(
       `git checkout -b ${shellArg(source.newBranch)}`,
@@ -280,6 +292,34 @@ async function bootstrapFromScratch(
         `Failed to create branch ${source.newBranch}: ${checkout.stderr}`
       );
     }
+  }
+}
+
+/**
+ * Check out an exact commit SHA. The commit is normally reachable from the
+ * already-fetched branch history; if not (partial/shallow), fetch the
+ * specific SHA and retry. Used for base_commit-pinned eval runs.
+ */
+async function checkoutCommit(
+  sandbox: DockerSandbox,
+  commit: string
+): Promise<void> {
+  let co = await sandbox.exec(`git checkout ${shellArg(commit)}`, {
+    timeoutMs: 30_000,
+  });
+  if (!co.success) {
+    await sandbox.exec(
+      `git fetch origin ${shellArg(commit)} --filter=blob:none`,
+      { timeoutMs: 120_000 }
+    );
+    co = await sandbox.exec(`git checkout ${shellArg(commit)}`, {
+      timeoutMs: 30_000,
+    });
+  }
+  if (!co.success) {
+    throw new Error(
+      `Failed to checkout commit ${commit}: ${co.stderr || co.stdout}`
+    );
   }
 }
 

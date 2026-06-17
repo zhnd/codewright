@@ -115,7 +115,7 @@ export async function resolveDefectWorkflow(
   try {
     sandboxState = await sandboxInfra.createSandboxActivity(
       input.repositoryUrl,
-      { projectId: input.projectId }
+      { projectId: input.projectId, commit: input.baseCommit }
     );
 
     const ctx: PhaseContext = {

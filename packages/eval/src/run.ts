@@ -1,0 +1,97 @@
+/**
+ * SWE-bench Verified eval — generation side.
+ *
+ * Loads a subset of SWE-bench Verified, drives Torin's resolveDefect on
+ * each instance @ base_commit (auto-approving HITL), extracts the source
+ * patch, and writes predictions.jsonl. Scoring is done in the cloud via
+ * sb-cli (printed at the end) — no local Docker, no 120GB.
+ *
+ * Usage:
+ *   pnpm --filter @torin/eval eval [limit]
+ * Env:
+ *   SWE_LIMIT             number of instances (default 20)
+ *   SWE_PREDICTIONS       output path (default predictions.jsonl)
+ *   TORIN_EVAL_PROJECT_ID project to attribute tasks to (else first project)
+ *
+ * Requires: worker + Temporal + Postgres running on the current branch.
+ */
+import { writeFileSync } from 'node:fs';
+import { prisma } from '@torin/database';
+import { loadSweBenchVerified } from './dataset.js';
+import { generateForInstance } from './generate.js';
+
+async function main(): Promise<void> {
+  const limit = Number(process.env.SWE_LIMIT ?? process.argv[2] ?? 20);
+  const outPath = process.env.SWE_PREDICTIONS ?? 'predictions.jsonl';
+
+  const explicitId = process.env.TORIN_EVAL_PROJECT_ID;
+  const project = explicitId
+    ? await prisma.project.findUnique({
+        where: { id: explicitId },
+        select: { id: true, userId: true },
+      })
+    : await prisma.project.findFirst({
+        select: { id: true, userId: true },
+        orderBy: { createdAt: 'asc' },
+      });
+  if (!project?.userId) {
+    console.error(
+      'No eval project with a userId. Set TORIN_EVAL_PROJECT_ID to a registered project.'
+    );
+    process.exit(1);
+  }
+
+  console.log(`Loading ${limit} SWE-bench Verified instances…`);
+  const instances = await loadSweBenchVerified(limit);
+  console.log(`Generating patches for ${instances.length} instances…\n`);
+
+  const lines: string[] = [];
+  let withPatch = 0;
+  for (const inst of instances) {
+    process.stdout.write(`▶ ${inst.instanceId} … `);
+    try {
+      const r = await generateForInstance({
+        instance: inst,
+        projectId: project.id,
+        userId: project.userId,
+      });
+      const patch = r.modelPatch ?? '';
+      if (patch) withPatch++;
+      lines.push(
+        JSON.stringify({
+          instance_id: inst.instanceId,
+          model_name_or_path: 'torin',
+          model_patch: patch,
+        })
+      );
+      console.log(`${patch ? 'patch✓' : 'patch✗'} (${r.status})`);
+    } catch (err) {
+      console.log(`💥 ${err instanceof Error ? err.message : String(err)}`);
+      lines.push(
+        JSON.stringify({
+          instance_id: inst.instanceId,
+          model_name_or_path: 'torin',
+          model_patch: '',
+        })
+      );
+    }
+  }
+
+  writeFileSync(outPath, `${lines.join('\n')}\n`);
+  console.log(
+    `\nWrote ${lines.length} predictions (${withPatch} with a patch) → ${outPath}`
+  );
+  console.log(
+    '\nScore in the cloud (needs SWEBENCH_API_KEY from swebench.com):'
+  );
+  console.log(
+    `  sb-cli submit swe-bench_verified test --predictions_path ${outPath} --run_id torin-run`
+  );
+
+  await prisma.$disconnect();
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

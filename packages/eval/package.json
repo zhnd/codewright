@@ -1,0 +1,29 @@
+{
+  "name": "@torin/eval",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "development": "./src/index.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "eval": "tsx --conditions development --env-file=../../.env src/run.ts"
+  },
+  "dependencies": {
+    "@torin/database": "workspace:*",
+    "@torin/domain": "workspace:*",
+    "@torin/workflow": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "tsx": "catalog:"
+  }
+}

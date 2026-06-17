@@ -28,6 +28,12 @@ export interface ResolveDefectInput {
    * caller that wants to target a release branch).
    */
   baseBranch?: string;
+  /**
+   * Caller-pinned base commit SHA. When set, the sandbox checks out this
+   * exact commit. Used by the SWE-bench eval harness, where every instance
+   * is pinned to a `base_commit`.
+   */
+  baseCommit?: string;
 }
 
 /**
