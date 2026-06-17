@@ -1,4 +1,3 @@
-import { criticResolution } from '@torin/agent';
 import type {
   CriticReview,
   DefectAnalysis,
@@ -6,6 +5,7 @@ import type {
   ResolutionResult,
 } from '@torin/domain';
 import { connectSandbox, type SandboxState } from '@torin/sandbox';
+import { criticResolution } from '@torin/solver';
 import { log } from '../logger.js';
 import {
   type AgentActivityResult,

@@ -1,5 +1,5 @@
 import { Context } from '@temporalio/activity';
-import { type AgentObserver, createObserver } from '@torin/agent';
+import { type AgentObserver, createObserver } from '@torin/agent-runtime';
 import {
   AGENT_INVOCATION_STATUS,
   type AgentInvocationStatusValue,

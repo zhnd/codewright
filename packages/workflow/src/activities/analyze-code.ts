@@ -1,6 +1,6 @@
-import { analyzeRepository } from '@torin/agent';
 import type { AnalysisResult } from '@torin/domain';
 import { connectSandbox, type SandboxState } from '@torin/sandbox';
+import { analyzeRepository } from '@torin/solver';
 import { log } from '../logger.js';
 import {
   type AgentActivityResult,

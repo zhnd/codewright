@@ -1,10 +1,10 @@
-import { implementResolution } from '@torin/agent';
 import type {
   DefectAnalysis,
   ReproductionOracle,
   ResolutionResult,
 } from '@torin/domain';
 import { connectSandbox, type SandboxState } from '@torin/sandbox';
+import { implementResolution } from '@torin/solver';
 import { log } from '../logger.js';
 import {
   type AgentActivityResult,

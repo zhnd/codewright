@@ -1,10 +1,10 @@
-import { analyzeDefect } from '@torin/agent';
 import type {
   AnalysisResult,
   DefectAnalysis,
   DefectIntent,
 } from '@torin/domain';
 import { connectSandbox, type SandboxState } from '@torin/sandbox';
+import { analyzeDefect } from '@torin/solver';
 import { log } from '../logger.js';
 import {
   type AgentActivityResult,

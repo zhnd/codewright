@@ -1,5 +1,5 @@
 {
-  "name": "@torin/agent",
+  "name": "@torin/agent-runtime",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -21,8 +21,6 @@
     "@torin/domain": "workspace:*",
     "@torin/sandbox": "workspace:*",
     "@torin/shared": "workspace:*",
-    "dedent": "^1.7.2",
-    "zod": "^4.3.6"
-  },
-  "devDependencies": {}
+    "zod": "catalog:"
+  }
 }
