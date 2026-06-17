@@ -7,6 +7,10 @@ export { createPullRequestActivity } from './create-pull-request.js';
 export { createSandboxActivity } from './create-sandbox.js';
 export { criticResolutionActivity } from './critic-resolution.js';
 export { destroySandboxActivity } from './destroy-sandbox.js';
+export {
+  type BaselineSnapshot,
+  establishBaselineActivity,
+} from './establish-baseline.js';
 export { filterCandidateActivity } from './filter-candidate.js';
 export {
   getWorkflowConfigActivity,

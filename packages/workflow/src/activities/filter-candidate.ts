@@ -11,6 +11,7 @@ import { log } from '../logger.js';
 import { bootVerify } from '../utils/boot-verify.js';
 import { checkScope, formatScopeFeedback } from '../utils/scope-check.js';
 import { detectTestRunner } from '../utils/test-runner-detect.js';
+import type { BaselineSnapshot } from './establish-baseline.js';
 
 export interface FilterCandidateInput {
   state: SandboxState;
@@ -18,6 +19,12 @@ export interface FilterCandidateInput {
   oracle: ReproductionOracle | null;
   resolution: ResolutionResult;
   projectId: string;
+  /**
+   * Execution baseline from {@link establishBaselineActivity}, used to
+   * verify a real FAIL_TO_PASS delta rather than trusting that the oracle
+   * merely passes on the patched tree.
+   */
+  baseline?: BaselineSnapshot;
 }
 
 export interface FilterCandidateResult {
@@ -25,6 +32,14 @@ export interface FilterCandidateResult {
   scopeViolations: string[];
   unauthorizedLockfiles: string[];
   oracleCheck?: FilterCheckResult;
+  /**
+   * True iff the oracle FAILED on the unpatched base AND passes here — a
+   * verified FAIL_TO_PASS delta. `false` = base failed but the patch
+   * still fails it. `undefined` = unverifiable (no baseline, or the
+   * oracle is untrustworthy because it already passed on base). Selection
+   * trusts this, NOT raw `oracleCheck.passed`.
+   */
+  oracleVerified?: boolean;
   regressionCheck?: FilterCheckResult;
   buildCheck?: FilterCheckResult;
   lintCheck?: FilterCheckResult;
@@ -84,6 +99,15 @@ export async function filterCandidateActivity(
       sandbox.exec(oracle.runCommand, { timeoutMs: 300_000 })
     );
   }
+
+  // Verify a real FAIL_TO_PASS delta: only trust the oracle as proof of
+  // a fix when it FAILED on the unpatched base (established once per task)
+  // AND passes here. Otherwise it is unverifiable — a no-op oracle that
+  // passes on base proves nothing.
+  const oracleVerified =
+    oracleCheck !== undefined && input.baseline?.oracleFailsOnBase === true
+      ? oracleCheck.passed
+      : undefined;
 
   // 3. Regression
   const runner = await detectTestRunner(sandbox);
@@ -161,6 +185,7 @@ export async function filterCandidateActivity(
     scopeViolations: [],
     unauthorizedLockfiles: [],
     oracleCheck,
+    oracleVerified,
     regressionCheck,
     buildCheck,
     lintCheck,

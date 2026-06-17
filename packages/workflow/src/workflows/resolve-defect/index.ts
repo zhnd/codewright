@@ -127,7 +127,25 @@ export async function resolveDefectWorkflow(
 
     const analysis = await runAnalyze(ctx, input);
     const oracle = await runReproduce(ctx, analysis);
-    const resolution = await runImplement(ctx, input, analysis, oracle);
+    // Establish the execution baseline (the oracle must FAIL on the
+    // unpatched base) so IMPLEMENT can verify a real FAIL_TO_PASS delta
+    // instead of trusting that the oracle merely passes on the patch.
+    // Only runnable test oracles can be verified this way.
+    const baseline =
+      oracle &&
+      (oracle.mode === 'test-framework' || oracle.mode === 'verify-script')
+        ? await sandboxInfra.establishBaselineActivity({
+            state: ctx.sandboxState,
+            oracle,
+          })
+        : null;
+    const resolution = await runImplement(
+      ctx,
+      input,
+      analysis,
+      oracle,
+      baseline
+    );
     await runPullRequest(ctx, input, analysis, resolution);
 
     await main.updateTaskActivity({

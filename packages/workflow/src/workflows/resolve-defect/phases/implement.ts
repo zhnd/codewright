@@ -1,9 +1,11 @@
 import type {
+  CriticReview,
   DefectAnalysis,
   ReproductionOracle,
   ResolutionResult,
   ResolveDefectInput,
 } from '@torin/domain';
+import type { BaselineSnapshot } from '../../../activities/index.js';
 import { renderViolations } from '../../../utils/precondition-check.js';
 import {
   type AttemptMemo,
@@ -25,12 +27,13 @@ import {
   buildSampleSummary,
   type Candidate,
   type CriticReviewEntry,
+  deriveTestVerdict,
   type FilterCheckEntry,
   memoFromCriticRejection,
   memoFromFilterFailure,
   memoFromHitlRejection,
   type SampleSummary,
-  selectTopCandidate,
+  selectByExecution,
 } from '../transformer.js';
 
 /**
@@ -52,7 +55,8 @@ export async function runImplement(
   ctx: PhaseContext,
   input: ResolveDefectInput,
   analysis: DefectAnalysis,
-  oracle: ReproductionOracle | null
+  oracle: ReproductionOracle | null,
+  baseline: BaselineSnapshot | null
 ): Promise<ResolutionResult> {
   let reviewerFeedback: string | undefined;
   const attemptMemos: AttemptMemo[] = [];
@@ -163,12 +167,22 @@ export async function runImplement(
         oracle,
         resolution: result,
         projectId: input.projectId,
+        baseline: baseline ?? undefined,
       });
 
       sampleSummaries.push(buildSampleSummary({ sampleId, result }));
       filterCheckList.push(buildFilterCheckEntry({ sampleId, filterResult }));
 
-      if (!filterResult.overallPassed) {
+      // Execution-driven eligibility (SOTA #1 lever): when an oracle or
+      // regression suite actually ran, trust THOSE results — not the LLM
+      // critic — to decide whether the patch is correct. Lint/boot are
+      // soft signals, not gates. Only when the repo yields NO executable
+      // correctness signal do we fall back to the old overallPassed gate.
+      const verdict = deriveTestVerdict(filterResult);
+      const correctnessEligible = verdict.hasExecutableSignal
+        ? verdict.executionEligible
+        : filterResult.overallPassed;
+      if (!correctnessEligible) {
         attemptMemos.push(
           memoFromFilterFailure({
             attemptNum: attemptMemos.length + 1,
@@ -179,7 +193,9 @@ export async function runImplement(
         continue;
       }
 
-      // FILTER passed → run critic.
+      // Critic runs as ADVISORY — it surfaces concerns for HITL and acts
+      // as a tiebreak among execution-eligible candidates. It no longer
+      // gates a patch the tests already proved correct.
       const criticOutcome = await sandboxAgent.criticResolutionActivity(
         ctx.sandboxState,
         input.defectDescription,
@@ -192,46 +208,49 @@ export async function runImplement(
         capturedTrace: criticOutcome.capturedTrace,
         errorText: criticOutcome.errorText,
       });
-      if (criticOutcome.status !== 'SUCCESS' || !criticOutcome.result) {
-        // Critic crashed for this sample — treat like a critic-rejection
-        // memo so the loop keeps moving.
-        attemptMemos.push({
-          attemptNum: attemptMemos.length + 1,
-          summary: criticOutcome.errorText ?? 'criticResolution agent crashed',
-          filesChanged: result.filesChanged,
-          failureReasons: [
-            criticOutcome.errorText ?? 'criticResolution agent crashed',
-          ],
-        });
-        continue;
-      }
-      const criticReview = criticOutcome.result;
+      // A critic crash must not drop a test-passing patch — synthesize a
+      // neutral review so the candidate still competes.
+      const criticReview: CriticReview =
+        criticOutcome.status === 'SUCCESS' && criticOutcome.result
+          ? criticOutcome.result
+          : {
+              approve: true,
+              score: 0.5,
+              concerns: [
+                {
+                  severity: 'info',
+                  description: `critic unavailable: ${criticOutcome.errorText ?? 'crashed'}`,
+                },
+              ],
+              scopeAssessment: 'clean',
+            };
       criticReviewList.push({ sampleId, review: criticReview });
 
-      if (criticReview.approve) {
-        const candidateBranch = `torin/cand-${round}-${sampleId}`;
-        await sandboxInfra.renameBranchActivity(
-          ctx.sandboxState,
-          result.branch,
-          candidateBranch
+      // Fallback gate: only when there was NO executable correctness
+      // signal do we honor critic.approve as a hard gate (test-sparse repo).
+      if (!verdict.hasExecutableSignal && !criticReview.approve) {
+        attemptMemos.push(
+          memoFromCriticRejection({
+            attemptNum: attemptMemos.length + 1,
+            result,
+            criticReview,
+          })
         );
-        candidates.push({
-          resolution: { ...result, branch: candidateBranch },
-          originalBranch: result.branch,
-          filterResult,
-          criticReview,
-        });
         continue;
       }
 
-      // Critic rejected → memo with concerns; the next sample will see it.
-      attemptMemos.push(
-        memoFromCriticRejection({
-          attemptNum: attemptMemos.length + 1,
-          result,
-          criticReview,
-        })
+      const candidateBranch = `torin/cand-${round}-${sampleId}`;
+      await sandboxInfra.renameBranchActivity(
+        ctx.sandboxState,
+        result.branch,
+        candidateBranch
       );
+      candidates.push({
+        resolution: { ...result, branch: candidateBranch },
+        originalBranch: result.branch,
+        filterResult,
+        criticReview,
+      });
     }
 
     if (candidates.length === 0) {
@@ -245,7 +264,7 @@ export async function runImplement(
 
     // Pick the winner and restore its original branch name (the renames
     // during the loop kept candidates from clobbering each other).
-    const selected = selectTopCandidate(candidates);
+    const selected = selectByExecution(candidates);
     await sandboxInfra.renameBranchActivity(
       ctx.sandboxState,
       selected.resolution.branch,
@@ -281,7 +300,7 @@ export async function runImplement(
       updateStage: {
         eventId: filterEventId,
         status: 'COMPLETED',
-        output: { checks: filterCheckList },
+        output: { checks: filterCheckList, baseline },
       },
       startStage: {
         stageKey: 'CRITIC',

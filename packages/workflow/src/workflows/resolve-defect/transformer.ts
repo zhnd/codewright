@@ -5,6 +5,7 @@ import type {
   ReproductionOracle,
   ResolutionResult,
   ReviewDecision,
+  TestVerdict,
 } from '@torin/domain';
 import type * as activities from '../../activities/index.js';
 import {
@@ -39,16 +40,78 @@ export function diffSize(resolution: ResolutionResult): number {
 }
 
 /**
- * Sort candidates by critic score desc, tiebreak by smaller diff.
- * Returns the top winner (caller has already verified `length > 0`).
+ * Derive the execution-grounded {@link TestVerdict} for a candidate from
+ * the raw FILTER check results. `null` = check not applicable.
  */
-export function selectTopCandidate(candidates: Candidate[]): Candidate {
-  const sorted = [...candidates].sort((a, b) => {
-    const scoreDiff = b.criticReview.score - a.criticReview.score;
+export function deriveTestVerdict(r: FilterCandidateResult): TestVerdict {
+  // FAIL_TO_PASS: trust the VERIFIED fail→pass delta, not the raw oracle
+  // pass. A no-op oracle that already passes on base yields `null` (no
+  // trustworthy signal) — it must never be counted as proof of a fix.
+  const oracle: boolean | null =
+    r.oracleVerified === true
+      ? true
+      : r.oracleVerified === false
+        ? false
+        : r.oracleCheck && r.oracleCheck.passed === false
+          ? false // oracle ran, patch still fails it → real negative
+          : null; // no oracle, or passed-but-unverified → no trustworthy signal
+  const regression = r.regressionCheck ? r.regressionCheck.passed : null;
+  const build = r.buildCheck ? r.buildCheck.passed : null;
+  const lint = r.lintCheck ? r.lintCheck.passed : null;
+  const boot = r.bootCheck ? r.bootCheck.passed : null;
+  // A signal is "executable" only when it is trustworthy: a verified (or
+  // genuinely-failing) oracle, or a regression suite that actually ran.
+  const hasExecutableSignal =
+    oracle !== null || r.regressionCheck !== undefined;
+  // A correctness gate is satisfied when it either did not run (null) or passed.
+  const gateOk = (v: boolean | null) => v === null || v === true;
+  const executionEligible =
+    r.scopeClean && gateOk(oracle) && gateOk(regression) && gateOk(build);
+  const correctnessScore =
+    (oracle === true ? 1 : 0) +
+    (regression === true ? 1 : 0) +
+    (build === true ? 1 : 0);
+  return {
+    failToPassPassed: oracle,
+    regressionPassed: regression,
+    buildPassed: build,
+    lintPassed: lint,
+    bootPassed: boot,
+    scopeClean: r.scopeClean,
+    hasExecutableSignal,
+    executionEligible,
+    correctnessScore,
+  };
+}
+
+/**
+ * Execution-driven selection (SOTA #1 lever): rank candidates by real
+ * test outcomes, NOT by the LLM critic. Order:
+ *   1. correctness checks passed (oracle + regression + build) — desc
+ *   2. soft signals (lint, boot) passed — desc
+ *   3. critic score — desc (TIEBREAK ONLY)
+ *   4. smaller diff
+ * Caller has already verified `candidates.length > 0`.
+ */
+export function selectByExecution(candidates: Candidate[]): Candidate {
+  const scored = candidates.map((c) => ({
+    c,
+    v: deriveTestVerdict(c.filterResult),
+  }));
+  scored.sort((a, b) => {
+    if (b.v.correctnessScore !== a.v.correctnessScore) {
+      return b.v.correctnessScore - a.v.correctnessScore;
+    }
+    const softA =
+      (a.v.lintPassed === true ? 1 : 0) + (a.v.bootPassed === true ? 1 : 0);
+    const softB =
+      (b.v.lintPassed === true ? 1 : 0) + (b.v.bootPassed === true ? 1 : 0);
+    if (softB !== softA) return softB - softA;
+    const scoreDiff = b.c.criticReview.score - a.c.criticReview.score;
     if (Math.abs(scoreDiff) > 0.001) return scoreDiff;
-    return diffSize(a.resolution) - diffSize(b.resolution);
+    return diffSize(a.c.resolution) - diffSize(b.c.resolution);
   });
-  return sorted[0];
+  return scored[0].c;
 }
 
 /** Map filter activity result into a stable per-check record. */
@@ -144,6 +207,14 @@ export interface FilterCheckEntry {
   build: FilterCandidateResult['buildCheck'];
   lint: FilterCandidateResult['lintCheck'];
   boot: FilterCandidateResult['bootCheck'];
+  /** Verified FAIL_TO_PASS delta (oracle failed on base AND passes here). */
+  oracleVerified?: boolean;
+  /**
+   * Whether this candidate is execution-eligible to enter the selection
+   * pool — the regression-trap signal. `false` here means the candidate
+   * was dropped on test evidence (e.g. it regressed), not on critic.
+   */
+  eligible: boolean;
 }
 
 export function buildFilterCheckEntry(args: {
@@ -151,6 +222,10 @@ export function buildFilterCheckEntry(args: {
   filterResult: FilterCandidateResult;
 }): FilterCheckEntry {
   const r = args.filterResult;
+  const verdict = deriveTestVerdict(r);
+  const eligible = verdict.hasExecutableSignal
+    ? verdict.executionEligible
+    : r.overallPassed;
   return {
     sampleId: args.sampleId,
     passed: r.overallPassed,
@@ -159,6 +234,8 @@ export function buildFilterCheckEntry(args: {
     build: r.buildCheck,
     lint: r.lintCheck,
     boot: r.bootCheck,
+    oracleVerified: r.oracleVerified,
+    eligible,
   };
 }
 
