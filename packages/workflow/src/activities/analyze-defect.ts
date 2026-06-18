@@ -2,9 +2,9 @@ import type {
   AnalysisResult,
   DefectAnalysis,
   DefectIntent,
-} from '@torin/domain';
-import type { SandboxState } from '@torin/sandbox';
-import { analyzeDefect } from '@torin/solver';
+} from '@codewright/domain';
+import type { SandboxState } from '@codewright/sandbox';
+import { analyzeDefect } from '@codewright/solver';
 import { log } from '../logger.js';
 import {
   type AgentActivityResult,

@@ -115,7 +115,7 @@ function StageDot({ status }: { status: StageStatus }) {
     return (
       <div className={cn(base, 'relative bg-[color:var(--accent)]')}>
         <span className="block h-0.75 w-0.75 rounded-full bg-white" />
-        <span className="torin-ping absolute -inset-px rounded-full bg-[color:var(--accent)] opacity-[0.35]" />
+        <span className="codewright-ping absolute -inset-px rounded-full bg-[color:var(--accent)] opacity-[0.35]" />
       </div>
     );
   if (status === 'skipped')

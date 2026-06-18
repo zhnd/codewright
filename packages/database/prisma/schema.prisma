@@ -206,7 +206,7 @@ model TapdCredential {
   @@map("tapd_credential")
 }
 
-// Each (user, Tapd workspace) maps to exactly one Torin Project. We
+// Each (user, Tapd workspace) maps to exactly one Codewright Project. We
 // store this so the Tapd inbox knows which Project to dispatch a
 // resolve-defect workflow against without the user picking on each
 // trigger.

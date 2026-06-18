@@ -1,6 +1,6 @@
-import type { AuthProvider, Prisma, PrismaClient } from '@torin/database';
-import { parseRepoUrl } from '@torin/githost';
-import { encrypt, getEncryptionKey } from '@torin/shared';
+import type { AuthProvider, Prisma, PrismaClient } from '@codewright/database';
+import { parseRepoUrl } from '@codewright/githost';
+import { encrypt, getEncryptionKey } from '@codewright/shared';
 import type { User } from 'better-auth';
 import {
   UnauthorizedError,

@@ -27,7 +27,7 @@ export function Settings() {
             Account & preferences
           </h1>
           <p className="mt-1.5 text-[12.5px] text-foreground-muted">
-            Account, profile, and authentication for Torin.
+            Account, profile, and authentication for Codewright.
           </p>
         </div>
 
@@ -73,7 +73,7 @@ export function Settings() {
                     </span>
                   </div>
                   <p className="mt-1.5 text-[11.5px] leading-relaxed text-foreground-subtle">
-                    Profile and credential changes apply only to this Torin
+                    Profile and credential changes apply only to this Codewright
                     account.
                   </p>
                 </div>

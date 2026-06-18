@@ -1,4 +1,4 @@
-import type { FileDiff } from '@torin/domain';
+import type { FileDiff } from '@codewright/domain';
 
 /**
  * Reflexion-style bounded memory. Each retry produces one AttemptMemo

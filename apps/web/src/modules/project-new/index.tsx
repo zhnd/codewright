@@ -25,8 +25,8 @@ export function ProjectNew() {
             Connect a repository
           </h1>
           <p className="mt-1.5 text-[12.5px] text-foreground-muted">
-            Point Torin at a GitHub or cnb.cool repository so it can analyze,
-            patch, and open pull requests.
+            Point Codewright at a GitHub or cnb.cool repository so it can
+            analyze, patch, and open pull requests.
           </p>
         </div>
 

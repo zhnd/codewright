@@ -1,4 +1,4 @@
-import type { PullRequestResult } from '@torin/domain';
+import type { PullRequestResult } from '@codewright/domain';
 import { getClient } from 'node-cnb';
 import { firstAddedLineNumber } from '../diff-position.js';
 import type {
@@ -139,7 +139,7 @@ export class CnbClient implements GitHostClient {
       const lineNumber = firstAddedLineNumber(prFile.patch);
       if (lineNumber == null) continue;
       comments.push({
-        body: `🤖 **Torin:** ${change.description}`,
+        body: `🤖 **Codewright:** ${change.description}`,
         path: change.file,
         subject_type: 'line',
         start_line: lineNumber,

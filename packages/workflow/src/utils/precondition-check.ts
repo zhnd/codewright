@@ -1,4 +1,4 @@
-import type { Sandbox } from '@torin/sandbox';
+import type { Sandbox } from '@codewright/sandbox';
 
 export interface PreconditionViolation {
   kind:

@@ -1,4 +1,4 @@
-import { connectSandbox, type SandboxState } from '@torin/sandbox';
+import { connectSandbox, type SandboxState } from '@codewright/sandbox';
 import { log } from '../logger.js';
 
 export interface ResetSandboxInput {

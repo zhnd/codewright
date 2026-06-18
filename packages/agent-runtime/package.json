@@ -1,5 +1,5 @@
 {
-  "name": "@torin/agent-runtime",
+  "name": "@codewright/agent-runtime",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -18,9 +18,9 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.92",
-    "@torin/domain": "workspace:*",
-    "@torin/sandbox": "workspace:*",
-    "@torin/shared": "workspace:*",
+    "@codewright/domain": "workspace:*",
+    "@codewright/sandbox": "workspace:*",
+    "@codewright/shared": "workspace:*",
     "zod": "catalog:"
   }
 }

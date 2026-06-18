@@ -1,6 +1,6 @@
-import type { PrismaClient } from '@torin/database';
-import { createGitClient, mapAuthProvider } from '@torin/githost';
-import { decrypt, getEncryptionKey } from '@torin/shared';
+import type { PrismaClient } from '@codewright/database';
+import { createGitClient, mapAuthProvider } from '@codewright/githost';
+import { decrypt, getEncryptionKey } from '@codewright/shared';
 import type { User } from 'better-auth';
 import {
   AppError,
@@ -13,7 +13,7 @@ import { log } from '../../../logger.js';
 /**
  * Read the project's git host for the list of branch names. Used by
  * the Tapd trigger dialog (and any future "pick a branch" UI). Mirrors
- * the encryption + provider mapping that `@torin/workflow`'s
+ * the encryption + provider mapping that `@codewright/workflow`'s
  * `gitClientFor` does at activity time — kept inline here so the
  * server doesn't have to depend on workflow internals.
  */

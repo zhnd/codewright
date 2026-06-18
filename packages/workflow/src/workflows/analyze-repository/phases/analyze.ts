@@ -1,4 +1,4 @@
-import type { AnalyzeRepositoryInput } from '@torin/domain';
+import type { AnalyzeRepositoryInput } from '@codewright/domain';
 import type { PhaseContext } from '../index.js';
 import { main, sandboxAgent } from '../proxies.js';
 import { buildAnalyzeStageInput } from '../transformer.js';

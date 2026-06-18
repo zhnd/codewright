@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@torin/database';
+import type { PrismaClient } from '@codewright/database';
 import type { User } from 'better-auth';
 import {
   NotFoundError,

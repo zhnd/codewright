@@ -1,5 +1,5 @@
-import { prisma } from '@torin/database';
-import { WORKFLOW_DEFINITIONS } from '@torin/workflow';
+import { prisma } from '@codewright/database';
+import { WORKFLOW_DEFINITIONS } from '@codewright/workflow';
 import { log } from '../logger.js';
 
 /**

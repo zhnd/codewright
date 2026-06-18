@@ -1,5 +1,5 @@
-import type { Prisma, PrismaClient, TaskType } from '@torin/database';
-import { createTemporalClient, TASK_QUEUE } from '@torin/workflow';
+import type { Prisma, PrismaClient, TaskType } from '@codewright/database';
+import { createTemporalClient, TASK_QUEUE } from '@codewright/workflow';
 import type { User } from 'better-auth';
 import {
   AppError,

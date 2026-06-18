@@ -1,4 +1,4 @@
-import type { TapdBug } from '@torin/domain';
+import type { TapdBug } from '@codewright/domain';
 
 const DEFAULT_API_BASE = 'https://api.tapd.cn';
 const DEFAULT_TAPD_BASE = 'https://www.tapd.cn';

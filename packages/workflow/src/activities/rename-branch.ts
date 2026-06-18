@@ -1,10 +1,10 @@
-import { connectSandbox, type SandboxState } from '@torin/sandbox';
+import { connectSandbox, type SandboxState } from '@codewright/sandbox';
 import { log } from '../logger.js';
 
 /**
  * Rename a local git branch inside the sandbox. Used by Best-of-N to
  * preserve each passing sample's branch under a sample-scoped name
- * (`torin/cand-<round>-<sampleId>`) before the next sample or reset can
+ * (`codewright/cand-<round>-<sampleId>`) before the next sample or reset can
  * overwrite or delete it. `git branch -M` force-overwrites the
  * destination so re-running a workflow round does not trip on stale
  * candidates from the prior round.

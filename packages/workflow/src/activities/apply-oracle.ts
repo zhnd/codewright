@@ -1,5 +1,5 @@
-import type { ReproductionOracle } from '@torin/domain';
-import { connectSandbox, type SandboxState } from '@torin/sandbox';
+import type { ReproductionOracle } from '@codewright/domain';
+import { connectSandbox, type SandboxState } from '@codewright/sandbox';
 import { log } from '../logger.js';
 
 /**

@@ -1,5 +1,5 @@
-import type { DefectIntent } from '@torin/domain';
-import { triageDefectIntent } from '@torin/solver';
+import type { DefectIntent } from '@codewright/domain';
+import { triageDefectIntent } from '@codewright/solver';
 import { log } from '../logger.js';
 import {
   type AgentActivityResult,

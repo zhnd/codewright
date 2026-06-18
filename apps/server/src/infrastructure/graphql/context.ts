@@ -1,4 +1,4 @@
-import { prisma } from '@torin/database';
+import { prisma } from '@codewright/database';
 import type { User } from 'better-auth';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { FastifyReply, FastifyRequest } from 'fastify';

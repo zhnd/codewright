@@ -1,4 +1,4 @@
-# @torin/githost
+# @codewright/githost
 
 Provider-agnostic abstraction over git hosts (GitHub, cnb.cool).
 
@@ -29,9 +29,9 @@ src/
 
 - **Repo identity is bound at construction.** Methods take action args only — never pass `repo` per call. Sandbox/credential code reads the same identity off the client's readonly fields.
 - **Single factory.** `createGitClient` is the only entry point for building clients. Callers do not import provider implementations directly.
-- **Pure abstraction.** This package has no Prisma awareness and no encryption awareness — adapters live in callers (`@torin/workflow/utils/git-context.ts` adapts a Project row).
+- **Pure abstraction.** This package has no Prisma awareness and no encryption awareness — adapters live in callers (`@codewright/workflow/utils/git-context.ts` adapts a Project row).
 - **cnb wire format diverges from GitHub.** cnb review comments use `start_line`/`end_line` in the new file with `start_side`/`end_side`, not GitHub's diff-relative `position`. `firstAddedLineNumber` parses `@@ -a,b +c,d @@` hunk headers to resolve new-file line numbers; `firstAddedLinePosition` stays for GitHub.
-- **HTTPS clone username differs by provider.** GitHub uses `x-access-token`, cnb uses `cnb`. The credential helper script (returned by `gitCredentialsFor`) bakes this in; the env var name is unified as `TORIN_GIT_TOKEN`.
+- **HTTPS clone username differs by provider.** GitHub uses `x-access-token`, cnb uses `cnb`. The credential helper script (returned by `gitCredentialsFor`) bakes this in; the env var name is unified as `CODEWRIGHT_GIT_TOKEN`.
 
 ## Adding a new git host
 
@@ -44,8 +44,8 @@ Callers (workflow activities, server services, sandbox broker) use only the publ
 
 ## Dependencies
 
-- `@torin/domain` — `PullRequestResult`, `FileChange`
-- `@torin/shared` — only for shared logger (used by clients on demand)
+- `@codewright/domain` — `PullRequestResult`, `FileChange`
+- `@codewright/shared` — only for shared logger (used by clients on demand)
 - Third-party: `@octokit/rest` (GitHub), `node-cnb` (cnb.cool)
 
 ## Key constraints

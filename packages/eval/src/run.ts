@@ -1,22 +1,22 @@
 /**
  * SWE-bench Verified eval — generation side.
  *
- * Loads a subset of SWE-bench Verified, drives Torin's resolveDefect on
+ * Loads a subset of SWE-bench Verified, drives Codewright's resolveDefect on
  * each instance @ base_commit (auto-approving HITL), extracts the source
  * patch, and writes predictions.jsonl. Scoring is done in the cloud via
  * sb-cli (printed at the end) — no local Docker, no 120GB.
  *
  * Usage:
- *   pnpm --filter @torin/eval eval [limit]
+ *   pnpm --filter @codewright/eval eval [limit]
  * Env:
  *   SWE_LIMIT             number of instances (default 20)
  *   SWE_PREDICTIONS       output path (default predictions.jsonl)
- *   TORIN_EVAL_PROJECT_ID project to attribute tasks to (else first project)
+ *   CODEWRIGHT_EVAL_PROJECT_ID project to attribute tasks to (else first project)
  *
  * Requires: worker + Temporal + Postgres running on the current branch.
  */
 import { writeFileSync } from 'node:fs';
-import { prisma } from '@torin/database';
+import { prisma } from '@codewright/database';
 import { loadSweBenchVerified } from './dataset.js';
 import { generateForInstance } from './generate.js';
 import { scoreWithSbCli } from './score.js';
@@ -25,7 +25,7 @@ async function main(): Promise<void> {
   const limit = Number(process.env.SWE_LIMIT ?? process.argv[2] ?? 20);
   const outPath = process.env.SWE_PREDICTIONS ?? 'predictions.jsonl';
 
-  const explicitId = process.env.TORIN_EVAL_PROJECT_ID;
+  const explicitId = process.env.CODEWRIGHT_EVAL_PROJECT_ID;
   const project = explicitId
     ? await prisma.project.findUnique({
         where: { id: explicitId },
@@ -37,7 +37,7 @@ async function main(): Promise<void> {
       });
   if (!project?.userId) {
     console.error(
-      'No eval project with a userId. Set TORIN_EVAL_PROJECT_ID to a registered project.'
+      'No eval project with a userId. Set CODEWRIGHT_EVAL_PROJECT_ID to a registered project.'
     );
     process.exit(1);
   }
@@ -61,7 +61,7 @@ async function main(): Promise<void> {
       lines.push(
         JSON.stringify({
           instance_id: inst.instanceId,
-          model_name_or_path: 'torin',
+          model_name_or_path: 'codewright',
           model_patch: patch,
         })
       );
@@ -71,7 +71,7 @@ async function main(): Promise<void> {
       lines.push(
         JSON.stringify({
           instance_id: inst.instanceId,
-          model_name_or_path: 'torin',
+          model_name_or_path: 'codewright',
           model_patch: '',
         })
       );
@@ -87,7 +87,7 @@ async function main(): Promise<void> {
 
   // Score in the cloud (sb-cli via uvx). Prints resolved% itself; no-op
   // with guidance when SWEBENCH_API_KEY / uv are missing.
-  scoreWithSbCli(outPath, `torin-${Date.now()}`);
+  scoreWithSbCli(outPath, `codewright-${Date.now()}`);
 }
 
 main().catch((err) => {

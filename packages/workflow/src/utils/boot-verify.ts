@@ -1,4 +1,4 @@
-import type { Sandbox } from '@torin/sandbox';
+import type { Sandbox } from '@codewright/sandbox';
 
 const DEFAULT_READY_PATTERNS = [
   'ready in',

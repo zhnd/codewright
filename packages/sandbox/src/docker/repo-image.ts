@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { GitHostProvider } from '@torin/githost';
+import type { GitHostProvider } from '@codewright/githost';
 import Docker from 'dockerode';
 import { log } from '../logger.js';
 import type { Source } from '../types.js';
@@ -22,9 +22,10 @@ import { DockerSandbox } from './sandbox.js';
 import { detectSetup, type SetupPlan } from './setup-detector.js';
 
 const LOCK_ROOT =
-  process.env.TORIN_LOCK_ROOT ?? path.join(os.tmpdir(), 'torin', 'locks');
-const RAW_REPO = 'torin/repo-raw';
-const SETUP_REPO = 'torin/repo';
+  process.env.CODEWRIGHT_LOCK_ROOT ??
+  path.join(os.tmpdir(), 'codewright', 'locks');
+const RAW_REPO = 'codewright/repo-raw';
+const SETUP_REPO = 'codewright/repo';
 const TIER_RAW = 'raw';
 const TIER_SETUP = 'setup';
 
@@ -52,8 +53,8 @@ export interface EnsureRepoImageResult {
  * Resolve (and if needed build) the image a task sandbox should run on.
  *
  * Produces a two-tier cache:
- *   - Tier 1: torin/repo-raw:<repoHash>          (clone only, no deps)
- *   - Tier 2: torin/repo:<repoHash>-<setupHash>  (tier 1 + dependencies)
+ *   - Tier 1: codewright/repo-raw:<repoHash>          (clone only, no deps)
+ *   - Tier 2: codewright/repo:<repoHash>-<setupHash>  (tier 1 + dependencies)
  *
  * Separating the tiers means a code change alone (same lockfile) reuses
  * tier 2, and a lockfile change alone reuses tier 1, rebuilding only the
@@ -123,7 +124,7 @@ export async function ensureRepoImage(
 }
 
 /**
- * Prune images torin manages. Dangling images (left over from commit
+ * Prune images codewright manages. Dangling images (left over from commit
  * replacing a tag) are always removed; tier-1 and tier-2 are dropped when
  * their age exceeds the configured thresholds.
  */
@@ -171,7 +172,7 @@ export async function pruneStaleImages(
 
 /**
  * Remove any builder containers left over from previous runs. Safe to call
- * at worker startup; builders always carry the `torin.role=builder` label.
+ * at worker startup; builders always carry the `codewright.role=builder` label.
  */
 export async function cleanupOrphanBuilders(): Promise<void> {
   const docker = new Docker();
@@ -283,8 +284,8 @@ async function buildSetup(
   plan: SetupPlan,
   options: EnsureRepoImageOptions
 ): Promise<void> {
-  // Pass token + provider so DockerSandbox.exec injects TORIN_GIT_TOKEN into
-  // setup commands; pnpm/npm interpolate ${TORIN_GIT_TOKEN} from the
+  // Pass token + provider so DockerSandbox.exec injects CODEWRIGHT_GIT_TOKEN into
+  // setup commands; pnpm/npm interpolate ${CODEWRIGHT_GIT_TOKEN} from the
   // user-supplied .npmrc at install time.
   const builder = await startBuilder(
     docker,
@@ -318,14 +319,14 @@ async function buildSetup(
  * Drop a project-supplied `.npmrc` into the builder's `$HOME` so pnpm/npm
  * pick it up during install. Heredoc delimiter is randomized to avoid
  * collisions with user content; single-quoted to suppress shell expansion
- * so `${TORIN_GIT_TOKEN}` and friends survive verbatim into the file.
+ * so `${CODEWRIGHT_GIT_TOKEN}` and friends survive verbatim into the file.
  * pnpm itself does the env-var substitution at install time.
  */
 async function writeNpmrc(
   builder: DockerSandbox,
   content: string
 ): Promise<void> {
-  const eof = `TORIN_NPMRC_EOF_${randomUUID().replace(/-/g, '')}`;
+  const eof = `CODEWRIGHT_NPMRC_EOF_${randomUUID().replace(/-/g, '')}`;
   const result = await builder.exec(
     `cat > /root/.npmrc <<'${eof}'\n${content}\n${eof}`,
     { cwd: DEFAULT_WORKING_DIRECTORY, timeoutMs: 5_000 }
@@ -388,7 +389,7 @@ async function commitBuilder(
     tag: tagName,
     changes: [
       `LABEL ${MANAGED_IMAGE_LABEL}=true`,
-      `LABEL torin.tier=${tier}`,
+      `LABEL codewright.tier=${tier}`,
     ].join('\n'),
   });
 }

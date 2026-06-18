@@ -1,12 +1,12 @@
-import type { AgentObserver } from '@torin/agent-runtime';
+import type { AgentObserver } from '@codewright/agent-runtime';
 import {
   createSandboxMcpServer,
   runAgent,
   SANDBOX_READ_TOOLS,
   sandboxOnlyToolConfig,
-} from '@torin/agent-runtime';
-import { type AnalysisResult, analysisResultSchema } from '@torin/domain';
-import type { Sandbox } from '@torin/sandbox';
+} from '@codewright/agent-runtime';
+import { type AnalysisResult, analysisResultSchema } from '@codewright/domain';
+import type { Sandbox } from '@codewright/sandbox';
 import { ANALYZE_SYSTEM_PROMPT, ANALYZE_USER_PROMPT } from './prompts.js';
 
 export async function analyzeRepository(

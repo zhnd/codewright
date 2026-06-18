@@ -1,5 +1,5 @@
 {
-  "name": "@torin/worker",
+  "name": "@codewright/worker",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,12 +10,12 @@
   },
   "dependencies": {
     "@temporalio/worker": "^1.17.0",
-    "@torin/agent-runtime": "workspace:*",
-    "@torin/domain": "workspace:*",
-    "@torin/solver": "workspace:*",
-    "@torin/sandbox": "workspace:*",
-    "@torin/shared": "workspace:*",
-    "@torin/workflow": "workspace:*"
+    "@codewright/agent-runtime": "workspace:*",
+    "@codewright/domain": "workspace:*",
+    "@codewright/solver": "workspace:*",
+    "@codewright/sandbox": "workspace:*",
+    "@codewright/shared": "workspace:*",
+    "@codewright/workflow": "workspace:*"
   },
   "devDependencies": {
     "tsx": "catalog:"

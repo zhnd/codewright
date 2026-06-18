@@ -1,4 +1,4 @@
-import type { GitHostProvider } from '@torin/githost';
+import type { GitHostProvider } from '@codewright/githost';
 import Docker from 'dockerode';
 import type { SandboxHooks } from '../interface.js';
 import { log } from '../logger.js';
@@ -341,7 +341,7 @@ async function configureGitIdentity(
  * Neutralize the repo's git hooks for EVERY sandbox commit. Real-world repos
  * ship husky / lint-staged / commitlint pre-commit + commit-msg hooks for
  * human contributors; they lint/format/typecheck staged files and reject
- * non-conventional messages — blocking Torin's automated oracle + implement
+ * non-conventional messages — blocking Codewright's automated oracle + implement
  * commits (`git commit failed … Preparing lint-staged…`).
  *
  * Must be set in the REPO-LOCAL config: husky writes `core.hooksPath` into

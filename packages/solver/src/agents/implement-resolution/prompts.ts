@@ -1,4 +1,4 @@
-import type { DefectAnalysis, ReproductionOracle } from '@torin/domain';
+import type { DefectAnalysis, ReproductionOracle } from '@codewright/domain';
 import dedent from 'dedent';
 
 export const IMPLEMENT_RESOLUTION_SYSTEM_PROMPT = dedent`

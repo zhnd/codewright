@@ -1,5 +1,5 @@
 {
-  "name": "@torin/eval",
+  "name": "@codewright/eval",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -22,9 +22,9 @@
     "verify-key": "bash scripts/setup.sh >/dev/null && ./.venv/bin/sb-cli verify-api-key"
   },
   "dependencies": {
-    "@torin/database": "workspace:*",
-    "@torin/domain": "workspace:*",
-    "@torin/workflow": "workspace:*"
+    "@codewright/database": "workspace:*",
+    "@codewright/domain": "workspace:*",
+    "@codewright/workflow": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

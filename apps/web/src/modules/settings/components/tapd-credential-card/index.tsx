@@ -36,9 +36,9 @@ export function TapdCredentialCard() {
             Tapd connection
           </h2>
           <p className="m-0 mt-1 text-[12px] text-foreground-muted">
-            Paste a Tapd Personal Access Token. Torin verifies it, discovers
-            your login handle from your workspace member record, and uses it to
-            fetch bugs assigned to you.
+            Paste a Tapd Personal Access Token. Codewright verifies it,
+            discovers your login handle from your workspace member record, and
+            uses it to fetch bugs assigned to you.
           </p>
         </div>
         {configured && (

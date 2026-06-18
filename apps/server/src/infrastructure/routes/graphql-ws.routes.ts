@@ -1,13 +1,13 @@
 import type { IncomingMessage } from 'node:http';
-import { prisma } from '@torin/database';
+import { prisma } from '@codewright/database';
 import type { User } from 'better-auth';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { FastifyInstance } from 'fastify';
 import { useServer } from 'graphql-ws/use/ws';
 import { WebSocketServer } from 'ws';
+import { log } from '../../logger.js';
 import { auth } from '../auth/better-auth.config.js';
 import { schema } from '../graphql/schema.js';
-import { log } from '../../logger.js';
 
 /**
  * Mounts a graphql-ws WebSocket endpoint at the same path as HTTP

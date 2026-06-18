@@ -1,5 +1,5 @@
 {
-  "name": "@torin/server",
+  "name": "@codewright/server",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,7 @@
     "build": "tsc -b .",
     "generate": "pnpm tsx --conditions development scripts/export-schema.ts",
     "reconcile-tasks": "tsx --conditions development --env-file=../../.env scripts/reconcile-tasks.ts",
-    "start:migrate:prod": "pnpm --filter @torin/database migrate:deploy && pnpm start"
+    "start:migrate:prod": "pnpm --filter @codewright/database migrate:deploy && pnpm start"
   },
   "dependencies": {
     "@apollo/server": "^5.5.0",
@@ -26,11 +26,11 @@
     "@pothos/plugin-relay": "^4.7.0",
     "@pothos/plugin-scope-auth": "^4.1.6",
     "@pothos/plugin-simple-objects": "^4.1.3",
-    "@torin/database": "workspace:*",
-    "@torin/domain": "workspace:*",
-    "@torin/githost": "workspace:*",
-    "@torin/shared": "workspace:*",
-    "@torin/workflow": "workspace:*",
+    "@codewright/database": "workspace:*",
+    "@codewright/domain": "workspace:*",
+    "@codewright/githost": "workspace:*",
+    "@codewright/shared": "workspace:*",
+    "@codewright/workflow": "workspace:*",
     "@types/ws": "^8.18.1",
     "better-auth": "catalog:",
     "fastify": "^5.8.5",

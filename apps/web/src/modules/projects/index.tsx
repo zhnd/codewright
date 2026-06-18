@@ -53,7 +53,7 @@ export function Projects() {
           <div className="rounded-md border border-border bg-surface px-6 py-10">
             <EmptyState
               title="No projects yet"
-              description="Connect a repository to start resolving defects with Torin."
+              description="Connect a repository to start resolving defects with Codewright."
               action={
                 <Button size="sm" asChild>
                   <Link href="/projects/new">Create your first project</Link>

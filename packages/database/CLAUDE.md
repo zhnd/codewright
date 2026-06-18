@@ -1,6 +1,6 @@
-# @torin/database
+# @codewright/database
 
-Shared database layer for the Torin system.
+Shared database layer for the Codewright system.
 
 ## Responsibilities
 
@@ -16,7 +16,7 @@ Shared database layer for the Torin system.
 
 ## Dependencies
 
-None (`@torin/*` packages). Third-party: Prisma, pg, dotenv (prisma CLI only).
+None (`@codewright/*` packages). Third-party: Prisma, pg, dotenv (prisma CLI only).
 
 ## Key constraint
 

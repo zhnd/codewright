@@ -1,10 +1,10 @@
-# Torin
+# Codewright
 
-Torin is an AI-powered execution system for software engineering.
+Codewright is an AI-powered execution system for software engineering.
 
 Most AI tools focus on code generation.
 
-Torin focuses on something broader and harder:
+Codewright focuses on something broader and harder:
 
 > turning engineering tasks into executable systems
 
@@ -17,7 +17,7 @@ That means the system should be able to:
 - recover from failure
 - remain observable and controllable throughout the process
 
-## Why Torin
+## Why Codewright
 
 Real engineering work is not a single prompt.
 
@@ -31,7 +31,7 @@ It is a chain of execution involving:
 - human decisions
 - final delivery
 
-Torin is built around that full loop.
+Codewright is built around that full loop.
 
 ## Design Principles
 
@@ -44,6 +44,6 @@ Torin is built around that full loop.
 
 ## Scope
 
-Torin is a general execution foundation for engineering tasks.
+Codewright is a general execution foundation for engineering tasks.
 
 Bug fixing is only one entry point.

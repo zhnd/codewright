@@ -1,17 +1,17 @@
-import type { AgentObserver } from '@torin/agent-runtime';
+import type { AgentObserver } from '@codewright/agent-runtime';
 import {
   createSandboxMcpServer,
   runAgent,
   SANDBOX_READ_TOOLS,
   sandboxOnlyToolConfig,
-} from '@torin/agent-runtime';
+} from '@codewright/agent-runtime';
 import {
   type AnalysisResult,
   type DefectAnalysis,
   type DefectIntent,
   defectAnalysisSchema,
-} from '@torin/domain';
-import type { Sandbox } from '@torin/sandbox';
+} from '@codewright/domain';
+import type { Sandbox } from '@codewright/sandbox';
 import {
   ANALYZE_DEFECT_SYSTEM_PROMPT,
   buildAnalyzeDefectUserPrompt,

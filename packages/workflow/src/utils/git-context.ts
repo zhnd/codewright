@@ -1,10 +1,10 @@
-import type { AuthProvider } from '@torin/database';
+import type { AuthProvider } from '@codewright/database';
 import {
   createGitClient,
   type GitHostClient,
   mapAuthProvider,
-} from '@torin/githost';
-import { decrypt, getEncryptionKey } from '@torin/shared';
+} from '@codewright/githost';
+import { decrypt, getEncryptionKey } from '@codewright/shared';
 
 interface ProjectLike {
   authProvider: AuthProvider;

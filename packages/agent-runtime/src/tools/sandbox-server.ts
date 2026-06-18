@@ -1,5 +1,5 @@
 import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
-import type { Sandbox } from '@torin/sandbox';
+import type { Sandbox } from '@codewright/sandbox';
 import { z } from 'zod/v4';
 
 /**

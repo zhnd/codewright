@@ -347,35 +347,35 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 -- ── pg_notify triggers for GraphQL subscription ───────────────
 -- task: status / metadata changes
 -- task_event: any insert (new attempt, new review) or update (status mutate)
--- Both push { taskId, kind } on channel 'torin_task_events'; the server's
+-- Both push { taskId, kind } on channel 'codewright_task_events'; the server's
 -- TaskPubSub fans out a debounced refetch (250 ms) to subscribers.
 
-CREATE OR REPLACE FUNCTION torin_notify_task() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION codewright_notify_task() RETURNS trigger AS $$
 BEGIN
   PERFORM pg_notify(
-    'torin_task_events',
+    'codewright_task_events',
     json_build_object('taskId', NEW.id, 'kind', 'task')::text
   );
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION torin_notify_task_event() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION codewright_notify_task_event() RETURNS trigger AS $$
 BEGIN
   PERFORM pg_notify(
-    'torin_task_events',
+    'codewright_task_events',
     json_build_object('taskId', NEW."taskId", 'kind', 'task_event')::text
   );
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS torin_task_notify ON "task";
-CREATE TRIGGER torin_task_notify
+DROP TRIGGER IF EXISTS codewright_task_notify ON "task";
+CREATE TRIGGER codewright_task_notify
   AFTER INSERT OR UPDATE ON "task"
-  FOR EACH ROW EXECUTE FUNCTION torin_notify_task();
+  FOR EACH ROW EXECUTE FUNCTION codewright_notify_task();
 
-DROP TRIGGER IF EXISTS torin_task_event_notify ON "task_event";
-CREATE TRIGGER torin_task_event_notify
+DROP TRIGGER IF EXISTS codewright_task_event_notify ON "task_event";
+CREATE TRIGGER codewright_task_event_notify
   AFTER INSERT OR UPDATE ON "task_event"
-  FOR EACH ROW EXECUTE FUNCTION torin_notify_task_event();
+  FOR EACH ROW EXECUTE FUNCTION codewright_notify_task_event();

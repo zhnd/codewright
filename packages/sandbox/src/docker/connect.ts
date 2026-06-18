@@ -1,4 +1,4 @@
-import type { GitHostProvider } from '@torin/githost';
+import type { GitHostProvider } from '@codewright/githost';
 import Docker from 'dockerode';
 import type { SandboxHooks } from '../interface.js';
 import { log } from '../logger.js';

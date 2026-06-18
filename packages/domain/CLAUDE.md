@@ -1,6 +1,6 @@
-# @torin/domain
+# @codewright/domain
 
-Core domain types — the shared type contracts of the Torin system.
+Core domain types — the shared type contracts of the Codewright system.
 
 ## Responsibilities
 
@@ -45,14 +45,14 @@ Rules:
 ## Conventions
 
 - One file per domain area — group related types together
-- All exports go through `index.ts` so consumers import from `@torin/domain`
+- All exports go through `index.ts` so consumers import from `@codewright/domain`
 - When adding new types, place them in the appropriate domain file or create a new one
 
 ## Dependencies
 
 - `zod` — runtime dependency for `agent-outputs/` schemas. This is the
   one intentional exception to the "pure types" rule; see rationale below.
-- No dependency on any other `@torin/*` package — leaf package.
+- No dependency on any other `@codewright/*` package — leaf package.
 
 ## Key constraint
 

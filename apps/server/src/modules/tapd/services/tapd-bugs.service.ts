@@ -1,5 +1,5 @@
-import type { PrismaClient } from '@torin/database';
-import type { TapdBug } from '@torin/domain';
+import type { PrismaClient } from '@codewright/database';
+import type { TapdBug } from '@codewright/domain';
 import type { User } from 'better-auth';
 import { UnauthorizedError } from '../../../infrastructure/errors/app-error.js';
 import { log } from '../../../logger.js';

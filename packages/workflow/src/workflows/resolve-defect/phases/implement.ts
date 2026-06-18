@@ -4,7 +4,7 @@ import type {
   ReproductionOracle,
   ResolutionResult,
   ResolveDefectInput,
-} from '@torin/domain';
+} from '@codewright/domain';
 import type { BaselineSnapshot } from '../../../activities/index.js';
 import { renderViolations } from '../../../utils/precondition-check.js';
 import {
@@ -285,7 +285,7 @@ export async function runImplement(
         continue;
       }
 
-      const candidateBranch = `torin/cand-${round}-${sampleId}`;
+      const candidateBranch = `codewright/cand-${round}-${sampleId}`;
       await sandboxInfra.renameBranchActivity(
         ctx.sandboxState,
         result.branch,

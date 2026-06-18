@@ -44,7 +44,7 @@ export function buildAwaitingItems(
       risk: 'medium',
       waited: formatRelative(t.updatedAt, now),
       waitedMinutes: minutesSince(t.updatedAt, now),
-      branch: `torin/${t.id.slice(-8)}`,
+      branch: `codewright/${t.id.slice(-8)}`,
     }));
 }
 

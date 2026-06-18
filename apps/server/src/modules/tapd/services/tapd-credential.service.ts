@@ -1,5 +1,5 @@
-import type { PrismaClient } from '@torin/database';
-import { decrypt, encrypt, getEncryptionKey } from '@torin/shared';
+import type { PrismaClient } from '@codewright/database';
+import { decrypt, encrypt, getEncryptionKey } from '@codewright/shared';
 import type { User } from 'better-auth';
 import {
   AppError,

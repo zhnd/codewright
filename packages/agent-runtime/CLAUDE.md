@@ -1,17 +1,17 @@
-# @torin/agent-runtime
+# @codewright/agent-runtime
 
 Agent **execution engine** (the "mechanism" layer). The ONLY package that
 imports the Claude Agent SDK. Owns the query loop, observability,
 structured-output parsing, and the sandbox tool surface. Knows nothing
-about bug-fixing — that lives in `@torin/solver`.
+about bug-fixing — that lives in `@codewright/solver`.
 
 ## Boundary (important)
 
 - **Only this package may import `@anthropic-ai/claude-agent-sdk`.**
 - No bug-fix vocabulary here (`defect` / `localize` / `repair`) — it is
   domain-agnostic; it just runs an agent session against a sandbox.
-- Consumed by `@torin/solver` (strategies call `runAgent` + tools) and by
-  `@torin/workflow` (`createObserver` in the agent-activity wrapper).
+- Consumed by `@codewright/solver` (strategies call `runAgent` + tools) and by
+  `@codewright/workflow` (`createObserver` in the agent-activity wrapper).
 
 ## Internal structure
 
@@ -40,9 +40,9 @@ that denies anything outside the MCP namespace. Presets:
 ## Dependencies
 
 - `@anthropic-ai/claude-agent-sdk` — the SDK (isolated here)
-- `@torin/sandbox` — `Sandbox` interface for code execution
-- `@torin/domain` — trace/observability + agent-output types
-- `@torin/shared` — logger
+- `@codewright/sandbox` — `Sandbox` interface for code execution
+- `@codewright/domain` — trace/observability + agent-output types
+- `@codewright/shared` — logger
 - `zod` — structured-output validation
 
 ## Key constraint

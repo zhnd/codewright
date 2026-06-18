@@ -1,4 +1,4 @@
-import type { GitHostProvider } from '@torin/githost';
+import type { GitHostProvider } from '@codewright/githost';
 
 export interface Source {
   repo: string;

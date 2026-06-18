@@ -8,7 +8,7 @@ import {
   generateSpanId,
   type ObservedEvent,
   type ToolCallTrace,
-} from '@torin/domain';
+} from '@codewright/domain';
 
 export interface AgentObserver {
   onMessage(message: unknown): void;

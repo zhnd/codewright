@@ -1,5 +1,5 @@
-import { prisma } from '@torin/database';
-import { connectSandbox, type SandboxState } from '@torin/sandbox';
+import { prisma } from '@codewright/database';
+import { connectSandbox, type SandboxState } from '@codewright/sandbox';
 import { log } from '../logger.js';
 import { gitClientFor } from '../utils/git-context.js';
 

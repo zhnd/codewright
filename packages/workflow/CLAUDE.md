@@ -1,4 +1,4 @@
-# @torin/workflow
+# @codewright/workflow
 
 Temporal workflow definitions, activities, and client utilities.
 
@@ -23,7 +23,7 @@ src/
     implement-resolution.ts # Agent-driven resolution implementation
     destroy-sandbox.ts      # Cleanup container
     push-branch.ts          # git push from sandbox
-    create-pull-request.ts  # Open PR via @torin/githost (GitHub or cnb.cool)
+    create-pull-request.ts  # Open PR via @codewright/githost (GitHub or cnb.cool)
     add-pr-review-comments.ts
     save-task-events.ts     # Persist observation events
     update-task.ts          # Update Task status in DB
@@ -43,12 +43,12 @@ src/
 
 ## Git host access
 
-Activities that need the git host API (PR create, review comments) call `gitClientFor(project)` from `utils/git-context.ts`. It decrypts credentials, parses the repo URL, and returns a `GitHostClient` from `@torin/githost` bound to that project — methods take action args only. Activities that need provider/token but no API client (sandbox create, push-branch) gate on `project.encryptedCredentials` and read `client?.provider` / `client?.token` / `client?.botIdentity` off the same client. `gitClientFor` throws if there are no credentials, so callers that allow no-creds must do the conditional themselves.
+Activities that need the git host API (PR create, review comments) call `gitClientFor(project)` from `utils/git-context.ts`. It decrypts credentials, parses the repo URL, and returns a `GitHostClient` from `@codewright/githost` bound to that project — methods take action args only. Activities that need provider/token but no API client (sandbox create, push-branch) gate on `project.encryptedCredentials` and read `client?.provider` / `client?.token` / `client?.botIdentity` off the same client. `gitClientFor` throws if there are no credentials, so callers that allow no-creds must do the conditional themselves.
 
 ## Two task queues (host-safety pattern)
 
-- `TASK_QUEUE` (`torin-main`) — workflows + lightweight activities (DB, GitHub API). High concurrency.
-- `SANDBOX_TASK_QUEUE` (`torin-sandbox-heavy`) — every activity that touches a Docker container or drives the agent. Worker concurrency is capped by `SANDBOX_CONCURRENCY` so the host never runs more than N containers at once; overflow queues on the Temporal server.
+- `TASK_QUEUE` (`codewright-main`) — workflows + lightweight activities (DB, GitHub API). High concurrency.
+- `SANDBOX_TASK_QUEUE` (`codewright-sandbox-heavy`) — every activity that touches a Docker container or drives the agent. Worker concurrency is capped by `SANDBOX_CONCURRENCY` so the host never runs more than N containers at once; overflow queues on the Temporal server.
 
 Workflows route calls via three `proxyActivities` groups:
 
@@ -60,12 +60,12 @@ When adding a new activity: if it connects to a sandbox (even briefly), put it o
 
 ## Dependencies
 
-- `@torin/agent` — called from agent-driven activities
-- `@torin/sandbox` — create/connect/destroy sandboxes
-- `@torin/githost` — provider-aware PR / review-comment client + URL parsing
-- `@torin/database` — update Task records
-- `@torin/domain` — shared types
-- `@torin/shared` — logger
+- `@codewright/agent` — called from agent-driven activities
+- `@codewright/sandbox` — create/connect/destroy sandboxes
+- `@codewright/githost` — provider-aware PR / review-comment client + URL parsing
+- `@codewright/database` — update Task records
+- `@codewright/domain` — shared types
+- `@codewright/shared` — logger
 
 ## Key constraint
 

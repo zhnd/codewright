@@ -3,9 +3,9 @@ import type {
   DefectAnalysis,
   ReproductionOracle,
   ResolutionResult,
-} from '@torin/domain';
-import type { SandboxState } from '@torin/sandbox';
-import { criticResolution } from '@torin/solver';
+} from '@codewright/domain';
+import type { SandboxState } from '@codewright/sandbox';
+import { criticResolution } from '@codewright/solver';
 import { log } from '../logger.js';
 import {
   type AgentActivityResult,

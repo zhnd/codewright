@@ -1,5 +1,5 @@
 {
-  "name": "@torin/githost",
+  "name": "@codewright/githost",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -18,8 +18,8 @@
   },
   "dependencies": {
     "@octokit/rest": "^22.0.1",
-    "@torin/domain": "workspace:*",
-    "@torin/shared": "workspace:*",
+    "@codewright/domain": "workspace:*",
+    "@codewright/shared": "workspace:*",
     "node-cnb": "^1.29.0"
   }
 }

@@ -1,6 +1,6 @@
+import { type Prisma, prisma } from '@codewright/database';
+import type { AgentInvocationTrace } from '@codewright/domain';
 import { Context } from '@temporalio/activity';
-import { type Prisma, prisma } from '@torin/database';
-import type { AgentInvocationTrace } from '@torin/domain';
 import { log } from '../logger.js';
 
 export interface PersistAgentInvocationInput {

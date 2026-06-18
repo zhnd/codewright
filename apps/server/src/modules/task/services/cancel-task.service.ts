@@ -1,5 +1,5 @@
-import type { Prisma, PrismaClient } from '@torin/database';
-import { createTemporalClient } from '@torin/workflow';
+import type { Prisma, PrismaClient } from '@codewright/database';
+import { createTemporalClient } from '@codewright/workflow';
 import type { User } from 'better-auth';
 import {
   AppError,

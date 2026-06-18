@@ -1,4 +1,4 @@
-import { prisma } from '@torin/database';
+import { prisma } from '@codewright/database';
 
 function readString(obj: unknown, ...path: string[]): string | null {
   let cur: unknown = obj;
@@ -17,7 +17,7 @@ function readString(obj: unknown, ...path: string[]): string | null {
  * SWE-bench: the repos are read-only for us, so the push stage fails and
  * the task ends FAILED, but the patch was already produced.
  *
- * Excludes the reproduction test file Torin added — SWE-bench applies its
+ * Excludes the reproduction test file Codewright added — SWE-bench applies its
  * own gold `test_patch`, so our test file would be redundant or conflict.
  */
 export async function extractModelPatch(

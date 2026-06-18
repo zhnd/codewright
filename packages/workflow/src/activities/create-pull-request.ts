@@ -1,5 +1,5 @@
-import { prisma } from '@torin/database';
-import type { PullRequestResult } from '@torin/domain';
+import { prisma } from '@codewright/database';
+import type { PullRequestResult } from '@codewright/domain';
 import { log } from '../logger.js';
 import { gitClientFor } from '../utils/git-context.js';
 

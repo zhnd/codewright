@@ -1,4 +1,4 @@
-# @torin/shared
+# @codewright/shared
 
 Common utilities shared across all packages.
 
@@ -17,7 +17,7 @@ Common utilities shared across all packages.
 
 ## Dependencies
 
-None (`@torin/*` packages). Third-party: pino (root-level dependency).
+None (`@codewright/*` packages). Third-party: pino (root-level dependency).
 
 ## Key constraint
 
