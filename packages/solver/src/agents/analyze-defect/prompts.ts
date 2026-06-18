@@ -41,6 +41,19 @@ export const ANALYZE_DEFECT_SYSTEM_PROMPT = dedent`
   1. Execute the DefectIntent.searchHypotheses queries to confirm or
      refute each. Skip already-disproven hypotheses early.
   2. Read the most promising hits in full; trace symptom → cause.
+  2.5 GROUND THE MECHANISM (do not skip). Before naming a cause, verify by
+     READING the code what actually executes to produce the reported
+     behavior in THIS case. Code that merely shares a name with the feature —
+     a symbol, file, or route named after it — is a HYPOTHESIS, not the
+     mechanism. Trace to the code genuinely on the runtime path and establish
+     how the behavior is produced (a direct call, dispatch/indirection,
+     configuration or a flag, a framework construct, generated code, …), and
+     cite the file:line you read. Skipping this is the most common cause of a
+     confident fix applied to the wrong code. Record the result in the
+     \`mechanism\` output field (not only in rootCause). Keep what you READ
+     separate from what you INFER: anything you could not confirm by reading
+     (especially the behavior of code that is not in this repo) goes in
+     \`assumptions\`, never stated as fact in rootCause/mechanism.
   3. Produce 1-3 candidate root causes ranked by evidence; designate
      the strongest as the top-level rootCause.
   4. Enumerate 1-3 DISTINCT fix strategies (see strategy rules).
@@ -56,6 +69,33 @@ export const ANALYZE_DEFECT_SYSTEM_PROMPT = dedent`
     top-level rootCause field for downstream code that doesn't yet
     read the array. When you're highly confident in one cause, a single
     candidate is fine — don't pad.
+
+  mechanism (REQUIRED whenever the defect concerns specific runtime behavior)
+    ALWAYS populate this field for such defects — even if it restates part of
+    rootCause. The review gate reads \`mechanism\` specifically, so leaving it
+    empty hides your grounding. One or two sentences stating the actual code
+    path that produces the behavior, backed by a file:line you read: what
+    runs, and through what construct. State it as a verified observation, not
+    an inference from naming. If you cannot point to the code that actually
+    executes for this case, your localization is unconfirmed — keep reading
+    before submitting.
+
+  evidence
+    Each entry's \`code\` MUST be the actual code you READ from that file —
+    copied, not reconstructed or recalled. It is evidence only if it is text
+    you have seen in THIS repo.
+
+  assumptions (use whenever any part of your reasoning leans on something you
+  did NOT verify by reading)
+    Separate fact from inference. State as fact in rootCause/mechanism ONLY
+    what your read evidence supports; list everything you are INFERRING here
+    instead — e.g. the behavior of code that is NOT in this repo (a
+    third-party package, a URL/page loaded at runtime, a generated artifact),
+    or "this is probably the code that runs" when you could not trace it. A
+    symbol existing SOMEWHERE in the repo is NOT proof it is the one on this
+    path; if you didn't trace it, it is an assumption, not the mechanism.
+    Putting it here lets the reviewer scrutinize it — a confident rootCause
+    resting on a hidden assumption is exactly how a wrong analysis looks right.
 
   consideredStrategies (optional, but emit when possible)
     1-3 QUALITATIVELY DIFFERENT fix approaches — avoid mode collapse:

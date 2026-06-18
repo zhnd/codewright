@@ -63,7 +63,14 @@ export const TRIAGE_DEFECT_INTENT_SYSTEM_PROMPT = dedent`
   searchHypotheses
     Concrete searches the next-stage agent should run as its FIRST
     turns, before any open-ended exploration. Aim for 2-5 hypotheses
-    ranked by likelihood.
+    ranked by likelihood. At least one hypothesis MUST target the
+    implementation LOCUS — where and how the feature is realized (its
+    entry point, the construct that produces the behavior) — not only
+    strings that echo the symptom. Symptom keywords tend to surface code
+    merely NAMED after the feature; the locus hypothesis points the next
+    stage at the code that actually implements it. You have no file access,
+    so this is a direction to investigate, not a verified claim — the next
+    stage confirms the real mechanism by reading.
       - hypothesis: 1-sentence "if this is the cause, here is why".
       - queries: actual greppable strings OR path globs that would
         prove or disprove it. Examples:

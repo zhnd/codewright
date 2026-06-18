@@ -119,6 +119,35 @@ export const defectAnalysisSchema = z.object({
    * full reasoning chain in one document.
    */
   intent: defectIntentSchema.optional(),
+  /**
+   * How the observed behavior is ACTUALLY produced at runtime — the concrete
+   * execution path / construct, grounded in code the agent READ (cite
+   * file:line). Domain-agnostic: which function / handler / component / query /
+   * config actually runs for this case, and through what mechanism. Examples
+   * across domains:
+   *   - frontend: "preview videos render via `<iframe>`, not a `<video>`"
+   *   - backend:  "the request is handled by middleware X before the named view"
+   *   - general:  "of `parseA`/`parseB`/`parseC`, only `parseB` is on this path";
+   *               "behavior is driven by feature-flag Y, not the obvious code path"
+   * The single highest-value field for catching a WRONG-MECHANISM localization
+   * (fixing plausibly-named code that isn't what actually runs) at the analysis
+   * HITL gate, before any fix. A NAME match is not proof — the claim must rest
+   * on code actually read. Optional for backward-compat.
+   */
+  mechanism: z.string().optional(),
+  /**
+   * Claims the analysis DEPENDS ON but did NOT verify by reading code —
+   * separated out so they are not mistaken for established fact. Forces the
+   * agent to calibrate: distinguish what it actually read from what it is
+   * inferring. Typical contents: behavior of code outside this repo (a
+   * third-party package, a URL/page loaded at runtime, generated artifacts),
+   * or "this is probably the code that runs" when the path could not be
+   * traced. The HITL reviewer should scrutinize these rather than trust them;
+   * a confident rootCause built on an unstated assumption is exactly how a
+   * wrong analysis looks right. Empty/omitted = everything stated is backed
+   * by code the agent read. Optional for backward-compat.
+   */
+  assumptions: z.array(z.string()).optional(),
   /** 1-3 ranked candidate root causes; the strongest is mirrored to `rootCause`. */
   candidateRootCauses: z.array(candidateRootCauseSchema).optional(),
   /** 1-3 distinct fix strategies; one marked 'recommended' drives implement. */
