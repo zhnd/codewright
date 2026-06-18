@@ -30,12 +30,12 @@
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "dotenv": "^17.4.2",
-    "pg": "^8.20.0"
+    "pg": "catalog:"
   },
   "devDependencies": {
-    "@pothos/plugin-prisma": "^4.14.3",
-    "@types/pg": "^8.20.0",
-    "graphql": "^16.13.2",
+    "@pothos/plugin-prisma": "catalog:",
+    "@types/pg": "catalog:",
+    "graphql": "catalog:",
     "prisma": "^7.8.0"
   }
 }

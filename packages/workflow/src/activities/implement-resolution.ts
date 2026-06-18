@@ -1,14 +1,14 @@
-import { implementResolution } from '@torin/agent';
 import type {
   DefectAnalysis,
   ReproductionOracle,
   ResolutionResult,
 } from '@torin/domain';
-import { connectSandbox, type SandboxState } from '@torin/sandbox';
+import type { SandboxState } from '@torin/sandbox';
+import { implementResolution } from '@torin/solver';
 import { log } from '../logger.js';
 import {
   type AgentActivityResult,
-  runAgentInActivity,
+  runSandboxAgentInActivity,
 } from '../utils/agent-activity.js';
 
 export async function implementResolutionActivity(
@@ -26,11 +26,11 @@ export async function implementResolutionActivity(
     },
     'Starting resolution implementation activity'
   );
-  const sandbox = await connectSandbox(state);
-  const out = await runAgentInActivity(
+  const out = await runSandboxAgentInActivity(
+    state,
     'implement',
     'implementResolution',
-    (observer) =>
+    (sandbox, observer) =>
       implementResolution(
         sandbox,
         defectDescription,

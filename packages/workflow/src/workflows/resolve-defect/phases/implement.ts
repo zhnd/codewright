@@ -1,9 +1,11 @@
 import type {
+  CriticReview,
   DefectAnalysis,
   ReproductionOracle,
   ResolutionResult,
   ResolveDefectInput,
 } from '@torin/domain';
+import type { BaselineSnapshot } from '../../../activities/index.js';
 import { renderViolations } from '../../../utils/precondition-check.js';
 import {
   type AttemptMemo,
@@ -25,12 +27,13 @@ import {
   buildSampleSummary,
   type Candidate,
   type CriticReviewEntry,
+  deriveTestVerdict,
   type FilterCheckEntry,
   memoFromCriticRejection,
   memoFromFilterFailure,
   memoFromHitlRejection,
   type SampleSummary,
-  selectTopCandidate,
+  selectByExecution,
 } from '../transformer.js';
 
 /**
@@ -52,7 +55,8 @@ export async function runImplement(
   ctx: PhaseContext,
   input: ResolveDefectInput,
   analysis: DefectAnalysis,
-  oracle: ReproductionOracle | null
+  oracle: ReproductionOracle | null,
+  baseline: BaselineSnapshot | null
 ): Promise<ResolutionResult> {
   let reviewerFeedback: string | undefined;
   const attemptMemos: AttemptMemo[] = [];
@@ -97,8 +101,20 @@ export async function runImplement(
         const reset = await sandboxInfra.resetSandboxActivity({
           state: ctx.sandboxState,
           ...(detectedBaseBranch ? { baseBranch: detectedBaseBranch } : {}),
+          // Keep eval samples pinned to the instance's base_commit. Without
+          // this, the reset would jump to the default-branch tip (years of
+          // upstream fixes), making the defect already-fixed and unrepairable.
+          ...(input.baseCommit ? { commit: input.baseCommit } : {}),
         });
         detectedBaseBranch = reset.baseBranch;
+        // `git reset --hard origin/<base>` discarded the oracle commit
+        // from REPRODUCE. Restore it so THIS candidate is verified against
+        // the same reproduction the baseline established — otherwise FILTER
+        // runs only the pre-existing tests and `oracleVerified` is a false
+        // positive (see baseline-differential design).
+        if (oracle?.filePath && oracle.content !== undefined) {
+          await sandboxInfra.applyOracleActivity(ctx.sandboxState, oracle);
+        }
       }
 
       let preconditionViolations: string[] | undefined;
@@ -119,6 +135,12 @@ export async function runImplement(
         reviewerFeedback,
         preconditionViolations,
       });
+
+      // Snapshot HEAD (base + committed oracle) BEFORE the agent edits, so we
+      // can derive the canonical fix-only patch from git afterwards.
+      const preFixSha = await sandboxInfra.captureHeadShaActivity(
+        ctx.sandboxState
+      );
 
       const implementOut = await sandboxAgent.implementResolutionActivity(
         ctx.sandboxState,
@@ -157,18 +179,56 @@ export async function runImplement(
         result.baseBranch = userBaseBranch;
       }
 
+      // L1 — never trust the agent's hand-authored diff (it routinely fails to
+      // apply: fabricated index lines, wrong hunk headers). Derive the real,
+      // applyable patch from the sandbox via `git diff` against the pre-fix
+      // HEAD. An empty diff means the agent changed nothing on disk (no-op /
+      // already-fixed hallucination) → not a real candidate, drop the sample.
+      const canonicalDiff = await sandboxInfra.computeCanonicalDiffActivity({
+        state: ctx.sandboxState,
+        baseRef: preFixSha,
+      });
+      if (canonicalDiff.length === 0) {
+        attemptMemos.push({
+          attemptNum: attemptMemos.length + 1,
+          summary:
+            'implementResolution reported success but produced no file changes on disk',
+          filesChanged: [],
+          failureReasons: [
+            'No diff vs pre-fix HEAD — the agent likely hallucinated an already-applied fix. Make a real source edit.',
+          ],
+        });
+        continue;
+      }
+      const reasonByFile = new Map(result.diff.map((d) => [d.file, d.reason]));
+      result.diff = canonicalDiff.map((d) => ({
+        ...d,
+        reason: reasonByFile.get(d.file) ?? d.reason,
+      }));
+      result.filesChanged = canonicalDiff.map((d) => d.file);
+
       const filterResult = await sandboxInfra.filterCandidateActivity({
         state: ctx.sandboxState,
         analysis,
         oracle,
         resolution: result,
         projectId: input.projectId,
+        baseline: baseline ?? undefined,
       });
 
       sampleSummaries.push(buildSampleSummary({ sampleId, result }));
       filterCheckList.push(buildFilterCheckEntry({ sampleId, filterResult }));
 
-      if (!filterResult.overallPassed) {
+      // Execution-driven eligibility (SOTA #1 lever): when an oracle or
+      // regression suite actually ran, trust THOSE results — not the LLM
+      // critic — to decide whether the patch is correct. Lint/boot are
+      // soft signals, not gates. Only when the repo yields NO executable
+      // correctness signal do we fall back to the old overallPassed gate.
+      const verdict = deriveTestVerdict(filterResult);
+      const correctnessEligible = verdict.hasExecutableSignal
+        ? verdict.executionEligible
+        : filterResult.overallPassed;
+      if (!correctnessEligible) {
         attemptMemos.push(
           memoFromFilterFailure({
             attemptNum: attemptMemos.length + 1,
@@ -179,7 +239,9 @@ export async function runImplement(
         continue;
       }
 
-      // FILTER passed → run critic.
+      // Critic runs as ADVISORY — it surfaces concerns for HITL and acts
+      // as a tiebreak among execution-eligible candidates. It no longer
+      // gates a patch the tests already proved correct.
       const criticOutcome = await sandboxAgent.criticResolutionActivity(
         ctx.sandboxState,
         input.defectDescription,
@@ -192,46 +254,49 @@ export async function runImplement(
         capturedTrace: criticOutcome.capturedTrace,
         errorText: criticOutcome.errorText,
       });
-      if (criticOutcome.status !== 'SUCCESS' || !criticOutcome.result) {
-        // Critic crashed for this sample — treat like a critic-rejection
-        // memo so the loop keeps moving.
-        attemptMemos.push({
-          attemptNum: attemptMemos.length + 1,
-          summary: criticOutcome.errorText ?? 'criticResolution agent crashed',
-          filesChanged: result.filesChanged,
-          failureReasons: [
-            criticOutcome.errorText ?? 'criticResolution agent crashed',
-          ],
-        });
-        continue;
-      }
-      const criticReview = criticOutcome.result;
+      // A critic crash must not drop a test-passing patch — synthesize a
+      // neutral review so the candidate still competes.
+      const criticReview: CriticReview =
+        criticOutcome.status === 'SUCCESS' && criticOutcome.result
+          ? criticOutcome.result
+          : {
+              approve: true,
+              score: 0.5,
+              concerns: [
+                {
+                  severity: 'info',
+                  description: `critic unavailable: ${criticOutcome.errorText ?? 'crashed'}`,
+                },
+              ],
+              scopeAssessment: 'clean',
+            };
       criticReviewList.push({ sampleId, review: criticReview });
 
-      if (criticReview.approve) {
-        const candidateBranch = `torin/cand-${round}-${sampleId}`;
-        await sandboxInfra.renameBranchActivity(
-          ctx.sandboxState,
-          result.branch,
-          candidateBranch
+      // Fallback gate: only when there was NO executable correctness
+      // signal do we honor critic.approve as a hard gate (test-sparse repo).
+      if (!verdict.hasExecutableSignal && !criticReview.approve) {
+        attemptMemos.push(
+          memoFromCriticRejection({
+            attemptNum: attemptMemos.length + 1,
+            result,
+            criticReview,
+          })
         );
-        candidates.push({
-          resolution: { ...result, branch: candidateBranch },
-          originalBranch: result.branch,
-          filterResult,
-          criticReview,
-        });
         continue;
       }
 
-      // Critic rejected → memo with concerns; the next sample will see it.
-      attemptMemos.push(
-        memoFromCriticRejection({
-          attemptNum: attemptMemos.length + 1,
-          result,
-          criticReview,
-        })
+      const candidateBranch = `torin/cand-${round}-${sampleId}`;
+      await sandboxInfra.renameBranchActivity(
+        ctx.sandboxState,
+        result.branch,
+        candidateBranch
       );
+      candidates.push({
+        resolution: { ...result, branch: candidateBranch },
+        originalBranch: result.branch,
+        filterResult,
+        criticReview,
+      });
     }
 
     if (candidates.length === 0) {
@@ -245,7 +310,7 @@ export async function runImplement(
 
     // Pick the winner and restore its original branch name (the renames
     // during the loop kept candidates from clobbering each other).
-    const selected = selectTopCandidate(candidates);
+    const selected = selectByExecution(candidates);
     await sandboxInfra.renameBranchActivity(
       ctx.sandboxState,
       selected.resolution.branch,
@@ -281,7 +346,7 @@ export async function runImplement(
       updateStage: {
         eventId: filterEventId,
         status: 'COMPLETED',
-        output: { checks: filterCheckList },
+        output: { checks: filterCheckList, baseline },
       },
       startStage: {
         stageKey: 'CRITIC',

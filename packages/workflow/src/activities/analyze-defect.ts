@@ -1,14 +1,14 @@
-import { analyzeDefect } from '@torin/agent';
 import type {
   AnalysisResult,
   DefectAnalysis,
   DefectIntent,
 } from '@torin/domain';
-import { connectSandbox, type SandboxState } from '@torin/sandbox';
+import type { SandboxState } from '@torin/sandbox';
+import { analyzeDefect } from '@torin/solver';
 import { log } from '../logger.js';
 import {
   type AgentActivityResult,
-  runAgentInActivity,
+  runSandboxAgentInActivity,
 } from '../utils/agent-activity.js';
 
 export async function analyzeDefectActivity(
@@ -26,11 +26,11 @@ export async function analyzeDefectActivity(
     },
     'Starting defect analysis activity'
   );
-  const sandbox = await connectSandbox(state);
-  const out = await runAgentInActivity(
+  const out = await runSandboxAgentInActivity(
+    state,
     'analysis',
     'analyzeDefect',
-    (observer) =>
+    (sandbox, observer) =>
       analyzeDefect(
         sandbox,
         defectDescription,

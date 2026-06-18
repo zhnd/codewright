@@ -1,0 +1,33 @@
+{
+  "name": "@torin/eval",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "development": "./src/index.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "setup": "bash scripts/setup.sh",
+    "eval": "bash scripts/setup.sh && tsx --conditions development --env-file=../../.env src/run.ts",
+    "score": "bash scripts/setup.sh && tsx --conditions development --env-file=../../.env src/score-cli.ts",
+    "gen-key": "bash scripts/setup.sh >/dev/null && ./.venv/bin/sb-cli gen-api-key",
+    "verify-key": "bash scripts/setup.sh >/dev/null && ./.venv/bin/sb-cli verify-api-key"
+  },
+  "dependencies": {
+    "@torin/database": "workspace:*",
+    "@torin/domain": "workspace:*",
+    "@torin/workflow": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "tsx": "catalog:"
+  }
+}

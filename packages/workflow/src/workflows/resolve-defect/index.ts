@@ -41,6 +41,33 @@ export class HitlTimeoutError extends Error {
   }
 }
 
+/**
+ * Temporal wraps a failed activity in an ActivityFailure whose own message
+ * is the opaque "Activity task failed" — the real reason lives further down
+ * the `.cause` chain (an ApplicationFailure carrying the activity's thrown
+ * message). Walk the chain and return the deepest meaningful message so
+ * `task.error` records WHY a run failed instead of the generic wrapper.
+ */
+function rootCauseMessage(err: unknown): string {
+  const messages: string[] = [];
+  const seen = new Set<unknown>();
+  let cur: unknown = err;
+  while (cur && typeof cur === 'object' && !seen.has(cur)) {
+    seen.add(cur);
+    const e = cur as { message?: unknown; cause?: unknown };
+    if (typeof e.message === 'string' && e.message.trim()) {
+      messages.push(e.message.trim());
+    }
+    cur = e.cause;
+  }
+  const meaningful = messages.filter((m) => m !== 'Activity task failed');
+  return (
+    meaningful.at(-1) ??
+    messages.at(-1) ??
+    (err instanceof Error ? err.message : String(err))
+  );
+}
+
 export interface ReviewGate {
   /**
    * Reset state and await the next review submission, bounded by
@@ -115,7 +142,7 @@ export async function resolveDefectWorkflow(
   try {
     sandboxState = await sandboxInfra.createSandboxActivity(
       input.repositoryUrl,
-      { projectId: input.projectId }
+      { projectId: input.projectId, commit: input.baseCommit }
     );
 
     const ctx: PhaseContext = {
@@ -127,7 +154,25 @@ export async function resolveDefectWorkflow(
 
     const analysis = await runAnalyze(ctx, input);
     const oracle = await runReproduce(ctx, analysis);
-    const resolution = await runImplement(ctx, input, analysis, oracle);
+    // Establish the execution baseline (the oracle must FAIL on the
+    // unpatched base) so IMPLEMENT can verify a real FAIL_TO_PASS delta
+    // instead of trusting that the oracle merely passes on the patch.
+    // Only runnable test oracles can be verified this way.
+    const baseline =
+      oracle &&
+      (oracle.mode === 'test-framework' || oracle.mode === 'verify-script')
+        ? await sandboxInfra.establishBaselineActivity({
+            state: ctx.sandboxState,
+            oracle,
+          })
+        : null;
+    const resolution = await runImplement(
+      ctx,
+      input,
+      analysis,
+      oracle,
+      baseline
+    );
     await runPullRequest(ctx, input, analysis, resolution);
 
     await main.updateTaskActivity({
@@ -137,11 +182,7 @@ export async function resolveDefectWorkflow(
   } catch (err) {
     const cancelled = isCancellation(err);
     const status: TaskStatus = cancelled ? 'CANCELLED' : 'FAILED';
-    const errorText = cancelled
-      ? 'Cancelled by user'
-      : err instanceof Error
-        ? err.message
-        : String(err);
+    const errorText = cancelled ? 'Cancelled by user' : rootCauseMessage(err);
 
     await CancellationScope.nonCancellable(() =>
       main.updateTaskActivity({

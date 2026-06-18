@@ -4,3 +4,16 @@ packages:
 allowBuilds:
   '@swc/core': true
   protobufjs: true
+# Centralized version management for third-party deps shared across more
+# than one workspace package. Packages reference these via "catalog:".
+# Single source of truth → no version drift (which previously gave two
+# zod copies and a cross-package ZodType mismatch).
+catalog:
+  '@pothos/plugin-prisma': ^4.14.3
+  '@types/pg': ^8.20.0
+  better-auth: ^1.6.9
+  graphql: ^16.13.2
+  graphql-ws: ^6.0.8
+  pg: ^8.20.0
+  tsx: ^4.21.0
+  zod: ^4.4.3

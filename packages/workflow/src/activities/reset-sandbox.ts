@@ -8,6 +8,14 @@ export interface ResetSandboxInput {
    * branch via `git symbolic-ref refs/remotes/origin/HEAD`.
    */
   baseBranch?: string;
+  /**
+   * Pinned base commit (e.g. SWE-bench `base_commit`). When set, the reset
+   * lands the base branch on THIS commit instead of `origin/<baseBranch>`.
+   * Without it, every reset would jump to the latest default-branch tip —
+   * which for an eval repo is years past the instance's base, where the
+   * bug is already fixed and there is nothing to repair.
+   */
+  commit?: string;
   /** If true, also delete any `fix/*` branches. Default: true. */
   deleteFixBranches?: boolean;
 }
@@ -39,16 +47,42 @@ export async function resetSandboxActivity(
     baseBranch = detect.stdout.trim() || 'main';
   }
 
-  log.info({ baseBranch }, 'Resetting sandbox');
+  log.info({ baseBranch, commit: input.commit }, 'Resetting sandbox');
 
-  const checkout = await sandbox.exec(
-    `git checkout ${shellArg(baseBranch)} && git reset --hard origin/${shellArg(baseBranch)}`,
-    { timeoutMs: 30_000 }
-  );
-  if (!checkout.success) {
-    throw new Error(
-      `Reset failed during checkout/reset: ${checkout.stderr || checkout.stdout}`
+  if (input.commit) {
+    // Pinned base commit: point the base branch AT the commit and check it
+    // out (`-B` creates/moves the branch). The commit is normally already
+    // present from the create-sandbox checkout; fetch it if a prior prune
+    // dropped it.
+    let checkout = await sandbox.exec(
+      `git checkout -f -B ${shellArg(baseBranch)} ${shellArg(input.commit)}`,
+      { timeoutMs: 30_000 }
     );
+    if (!checkout.success) {
+      await sandbox.exec(
+        `git fetch origin ${shellArg(input.commit)} --filter=blob:none`,
+        { timeoutMs: 120_000 }
+      );
+      checkout = await sandbox.exec(
+        `git checkout -f -B ${shellArg(baseBranch)} ${shellArg(input.commit)}`,
+        { timeoutMs: 30_000 }
+      );
+    }
+    if (!checkout.success) {
+      throw new Error(
+        `Reset to pinned commit ${input.commit} failed: ${checkout.stderr || checkout.stdout}`
+      );
+    }
+  } else {
+    const checkout = await sandbox.exec(
+      `git checkout ${shellArg(baseBranch)} && git reset --hard origin/${shellArg(baseBranch)}`,
+      { timeoutMs: 30_000 }
+    );
+    if (!checkout.success) {
+      throw new Error(
+        `Reset failed during checkout/reset: ${checkout.stderr || checkout.stdout}`
+      );
+    }
   }
 
   if (input.deleteFixBranches !== false) {

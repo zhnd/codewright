@@ -1,0 +1,26 @@
+{
+  "name": "@torin/solver",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "development": "./src/index.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@torin/agent-runtime": "workspace:*",
+    "@torin/domain": "workspace:*",
+    "@torin/sandbox": "workspace:*",
+    "@torin/shared": "workspace:*",
+    "dedent": "^1.7.2"
+  }
+}

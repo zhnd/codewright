@@ -10,6 +10,8 @@ export interface CreateSandboxActivityOptions {
   image?: string;
   projectId?: string;
   branch?: string;
+  /** Check out this exact commit after fetch/clone (e.g. SWE-bench base_commit). */
+  commit?: string;
   newBranch?: string;
 }
 
@@ -38,6 +40,7 @@ export async function createSandboxActivity(
       token: gitToken,
       provider: gitProvider,
       branch: options.branch,
+      commit: options.commit,
       newBranch: options.newBranch,
     },
     gitUser,
