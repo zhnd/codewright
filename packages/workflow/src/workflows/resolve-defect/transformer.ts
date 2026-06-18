@@ -65,8 +65,12 @@ export function deriveTestVerdict(r: FilterCandidateResult): TestVerdict {
     oracle !== null || r.regressionCheck !== undefined;
   // A correctness gate is satisfied when it either did not run (null) or passed.
   const gateOk = (v: boolean | null) => v === null || v === true;
+  // Build is ADVISORY, not a hard gate. The in-sandbox typecheck/build is too
+  // environment-fragile on real repos (monorepo project refs, generated
+  // clients, wrong root command) to reject an oracle-verified fix — it stays a
+  // soft signal (correctnessScore + critic visibility); real CI is the backstop.
   const executionEligible =
-    r.scopeClean && gateOk(oracle) && gateOk(regression) && gateOk(build);
+    r.scopeClean && gateOk(oracle) && gateOk(regression);
   const correctnessScore =
     (oracle === true ? 1 : 0) +
     (regression === true ? 1 : 0) +
