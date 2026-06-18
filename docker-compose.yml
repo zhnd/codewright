@@ -1,17 +1,17 @@
 services:
   postgres:
-    container_name: torin-postgres
+    container_name: codewright-postgres
     image: postgres:17
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-torin}
+      POSTGRES_USER: ${POSTGRES_USER:-codewright}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      POSTGRES_DB: ${POSTGRES_DB:-torin}
+      POSTGRES_DB: ${POSTGRES_DB:-codewright}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - ${POSTGRES_PORT:-5432}:5432
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-torin}']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-codewright}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -19,7 +19,7 @@ services:
     shm_size: 128mb
 
   temporal-postgres:
-    container_name: torin-temporal-postgres
+    container_name: codewright-temporal-postgres
     image: postgres:17
     environment:
       POSTGRES_USER: temporal
@@ -38,7 +38,7 @@ services:
     shm_size: 128mb
 
   temporal:
-    container_name: torin-temporal
+    container_name: codewright-temporal
     image: temporalio/auto-setup:latest
     depends_on:
       temporal-postgres:
@@ -54,7 +54,7 @@ services:
     restart: always
 
   temporal-ui:
-    container_name: torin-temporal-ui
+    container_name: codewright-temporal-ui
     image: temporalio/ui:latest
     depends_on:
       - temporal

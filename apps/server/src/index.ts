@@ -1,2 +1,2 @@
-export { prisma } from '@torin/database';
+export { prisma } from '@codewright/database';
 export type { Context } from './infrastructure/graphql/context.js';

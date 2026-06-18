@@ -15,7 +15,7 @@ const POLL_INTERVAL_MS = 30_000;
 
 export interface WorkspaceMapEntry {
   workspaceId: string;
-  /** null = no Torin project mapped yet. */
+  /** null = no Codewright project mapped yet. */
   mapping: TapdInboxMapping | null;
 }
 

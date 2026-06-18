@@ -11,7 +11,7 @@ import './globals.css';
 // look across platforms with zero build-time network dependency.
 
 export const metadata: Metadata = {
-  title: 'Torin',
+  title: 'Codewright',
   description: 'AI-powered execution system for software engineering',
 };
 

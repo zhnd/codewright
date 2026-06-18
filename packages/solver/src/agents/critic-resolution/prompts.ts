@@ -2,7 +2,7 @@ import type {
   DefectAnalysis,
   ReproductionOracle,
   ResolutionResult,
-} from '@torin/domain';
+} from '@codewright/domain';
 import dedent from 'dedent';
 
 export const CRITIC_RESOLUTION_SYSTEM_PROMPT = dedent`

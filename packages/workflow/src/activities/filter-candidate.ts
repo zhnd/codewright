@@ -1,12 +1,12 @@
-import { prisma } from '@torin/database';
+import { prisma } from '@codewright/database';
 import type {
   DefectAnalysis,
   FilterCheckResult,
   ReproductionOracle,
   ResolutionResult,
-} from '@torin/domain';
-import { connectSandbox, type SandboxState } from '@torin/sandbox';
-import { decrypt, getEncryptionKey } from '@torin/shared';
+} from '@codewright/domain';
+import { connectSandbox, type SandboxState } from '@codewright/sandbox';
+import { decrypt, getEncryptionKey } from '@codewright/shared';
 import { log } from '../logger.js';
 import { bootVerify } from '../utils/boot-verify.js';
 import { checkScope, formatScopeFeedback } from '../utils/scope-check.js';
@@ -164,7 +164,7 @@ export async function filterCandidateActivity(
     if (previewCommand && previewPort) {
       const env = project?.encryptedCredentials
         ? {
-            TORIN_GIT_TOKEN: decrypt(
+            CODEWRIGHT_GIT_TOKEN: decrypt(
               project.encryptedCredentials,
               getEncryptionKey()
             ),

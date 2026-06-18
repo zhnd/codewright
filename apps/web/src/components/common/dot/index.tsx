@@ -33,7 +33,7 @@ export function Dot({
       {pulse && (
         <span
           className={cn(
-            'torin-ping absolute inset-0 rounded-full opacity-45',
+            'codewright-ping absolute inset-0 rounded-full opacity-45',
             className
           )}
           style={{ background: className ? undefined : color }}

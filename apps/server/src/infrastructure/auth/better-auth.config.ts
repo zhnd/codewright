@@ -1,4 +1,4 @@
-import { prisma } from '@torin/database';
+import { prisma } from '@codewright/database';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 
@@ -34,7 +34,7 @@ export const auth = betterAuth({
 
   trustedOrigins: [process.env.WEB_URL || 'http://localhost:3000'],
 
-  appName: '@torin/server',
+  appName: '@codewright/server',
 
   emailAndPassword: {
     enabled: true,

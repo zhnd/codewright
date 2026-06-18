@@ -6,7 +6,7 @@ import type {
   ResolutionResult,
   ReviewDecision,
   TestVerdict,
-} from '@torin/domain';
+} from '@codewright/domain';
 import type * as activities from '../../activities/index.js';
 import {
   type AttemptMemo,

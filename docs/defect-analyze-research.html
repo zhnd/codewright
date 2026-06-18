@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
-<title>Torin Defect 分析阶段重构 — 文献与开源调研学习文档</title>
+<title>Codewright Defect 分析阶段重构 — 文献与开源调研学习文档</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
   :root {
@@ -141,7 +141,7 @@
 <div class="wrap">
 
 <header class="hero">
-  <h1>Torin Defect 分析阶段重构</h1>
+  <h1>Codewright Defect 分析阶段重构</h1>
   <div class="sub">基于 2025–2026 论文与生产开源系统的调研学习文档 · 用于决策前的知识对齐</div>
 </header>
 
@@ -168,7 +168,7 @@
 <section id="intro">
 <h2>1. 导读：我们要解决什么</h2>
 
-<p>Torin 当前的 <code>analyze-defect</code> agent（<code>packages/agent/src/agents/analyze-defect/</code>）在 20 个 turn 内同时承担六件事：</p>
+<p>Codewright 当前的 <code>analyze-defect</code> agent（<code>packages/agent/src/agents/analyze-defect/</code>）在 20 个 turn 内同时承担六件事：</p>
 
 <ol>
   <li>理解 defect 的<strong>意图</strong>（用户在抱怨什么）</li>
@@ -197,7 +197,7 @@
 
 <div class="callout info">
 <strong>阅读建议</strong>
-直接看 <a href="#tldr">TL;DR</a> 再翻"证据"各节深入。每节末尾有"对我们的启示"小段，把抽象论文映射到 Torin 当前代码。
+直接看 <a href="#tldr">TL;DR</a> 再翻"证据"各节深入。每节末尾有"对我们的启示"小段，把抽象论文映射到 Codewright 当前代码。
 </div>
 </section>
 
@@ -298,14 +298,14 @@
 </blockquote>
 
 <h4>对我们的启示</h4>
-<p>Torin 已经用 Temporal workflow 做了 pre-planning（每个 stage 是固定的），这条路线已经走对了。继续在 stage 内部细化 pre-planning（intent → repo map → analyze）符合 CodeR 的发现。</p>
+<p>Codewright 已经用 Temporal workflow 做了 pre-planning（每个 stage 是固定的），这条路线已经走对了。继续在 stage 内部细化 pre-planning（intent → repo map → analyze）符合 CodeR 的发现。</p>
 
 <h3>4.4 Google "Small Models, Big Results" — Intent Extraction by Decomposition</h3>
 
 <p>Google Research 2025 的一篇博客，做的是 NLU 领域的 intent extraction（不是 SWE，但 idea 通用）。核心发现：与其用一个大模型一步到位提取 intent，不如<strong>把任务拆成多个小步骤、每步用小模型</strong>——成本降一个数量级、准确率不降甚至提升。<a href="https://research.google/blog/small-models-big-results-achieving-superior-intent-extraction-through-decomposition/">research.google</a></p>
 
 <h4>对我们的启示</h4>
-<p>这是我们让 intent agent 用更便宜模型（Haiku 级别）的论据。Intent 阶段是文本→结构化，complexity 不需要 Opus 4.7。当前 Torin <code>runAgent</code> 只读全局 <code>AGENT_MODEL</code>，加 per-agent override 是低成本改造。</p>
+<p>这是我们让 intent agent 用更便宜模型（Haiku 级别）的论据。Intent 阶段是文本→结构化，complexity 不需要 Opus 4.7。当前 Codewright <code>runAgent</code> 只读全局 <code>AGENT_MODEL</code>，加 per-agent override 是低成本改造。</p>
 
 <h3>4.5 IQLoc — 结构化 keyword 抽取的"硬"实验</h3>
 
@@ -383,7 +383,7 @@ src/checkout.ts:
 <p>关键设计：<strong>map 是 chat 的固定前缀</strong>，每次对话开头同样的 map，吃 prompt cache。这是 Aider 在长会话里保持便宜的核心机制之一。</p>
 
 <h4>对我们的启示</h4>
-<p>Torin 已有 <code>analyze-repository</code> agent 跑过一次产出仓库结构性 <code>AnalysisResult</code>。短期可以：</p>
+<p>Codewright 已有 <code>analyze-repository</code> agent 跑过一次产出仓库结构性 <code>AnalysisResult</code>。短期可以：</p>
 <ul>
   <li>R2 第一步：直接拿 <code>AnalysisResult</code> 里 techStack / 关键目录 / patterns 作为 navigation hint（~500 tokens）。</li>
   <li>R2 第二步（可选）：让 <code>analyze-repository</code> 额外跑 tree-sitter + PageRank 产出 Aider 风格的 repo map，作为 <code>AnalysisResult</code> 的新字段。</li>
@@ -587,7 +587,7 @@ src/checkout.ts:
 
 <h4>对我们的启示</h4>
 
-<p>当前 Torin Phase 1.5 已经有 <code>previousAttempts</code> Reflexion 形态——iteration on best。REx 启示我们：当多个 attempt 都失败时，下一步应该是<strong>切换到另一个 strategy</strong>（探索），而不是继续 refine 这个 strategy（利用）。这恰好是我们 R2 把 <code>consideredStrategies[]</code> 做成 fallback 队列的理由。</p>
+<p>当前 Codewright Phase 1.5 已经有 <code>previousAttempts</code> Reflexion 形态——iteration on best。REx 启示我们：当多个 attempt 都失败时，下一步应该是<strong>切换到另一个 strategy</strong>（探索），而不是继续 refine 这个 strategy（利用）。这恰好是我们 R2 把 <code>consideredStrategies[]</code> 做成 fallback 队列的理由。</p>
 
 <p>具体流程：</p>
 <pre><code>implement attempt 1: 用 strategy[0]
@@ -757,7 +757,7 @@ DefectIntent:
 <p>查 ANALYZE_REPOSITORY 历史输出是 DB 操作，本来就是确定性的。塞进 Temporal workflow 不需要 LLM 介入。这同时避免了 workflow 的 determinism boundary 问题（workflow 代码不能直接做 IO）——把查询放在 server 侧 ResolveDefectService.execute 里、查完结果作为 workflow input。</p>
 
 <h3>11.5 为什么不在 analyze 内嵌 reproducer</h3>
-<p>见 <a href="#evi-reproducer">第 6.4 节 AutoCodeRover django case</a>。Reproducer 失误会把 localize 引偏。当前 Torin 的 <code>analyze → HITL → reproduce</code> 顺序保留，intent agent 只输出 <code>reproducerHypothesis</code>（"如果要写 stub，大概会长这样"），实际 reproduce 留在 REPRODUCE 阶段。</p>
+<p>见 <a href="#evi-reproducer">第 6.4 节 AutoCodeRover django case</a>。Reproducer 失误会把 localize 引偏。当前 Codewright 的 <code>analyze → HITL → reproduce</code> 顺序保留，intent agent 只输出 <code>reproducerHypothesis</code>（"如果要写 stub，大概会长这样"），实际 reproduce 留在 REPRODUCE 阶段。</p>
 
 <h3>11.6 为什么单一 HITL gate</h3>
 <p>三个 sub-stage 各自 gate 会让 reviewer 点击量×3，且与 <code>CANONICAL_STAGE_ORDER</code> 不兼容。Reviewer 在一屏看到 intent + candidateRootCauses + consideredStrategies 是<em>更多</em>信息，不是更少。Rejection 反馈下三段全重跑（intent 6 turns 很便宜）。</p>
@@ -897,9 +897,9 @@ DefectIntent:
 <h2>13. 术语表</h2>
 <dl class="ref-list">
   <dt>Agent loop / Agent decision loop</dt>
-  <dd>LLM 自主决定下一步动作（read / grep / bash / submit）的循环。Torin 用 Claude Agent SDK 提供这个 loop，每个 stage 由一个 agent run 完成。</dd>
+  <dd>LLM 自主决定下一步动作（read / grep / bash / submit）的循环。Codewright 用 Claude Agent SDK 提供这个 loop，每个 stage 由一个 agent run 完成。</dd>
   <dt>Activity（Temporal）</dt>
-  <dd>Workflow 里的 IO 操作单元。必须幂等。Torin 把 sandbox 操作、DB 操作、LLM 调用都放 activity，workflow 自己保持纯函数。</dd>
+  <dd>Workflow 里的 IO 操作单元。必须幂等。Codewright 把 sandbox 操作、DB 操作、LLM 调用都放 activity，workflow 自己保持纯函数。</dd>
   <dt>Best-of-N</dt>
   <dd>同一题跑 N 次，挑一个最好。SOTA SWE-agent 系统几乎都用 Best-of-N 在 leaderboard 顶部刷分（典型 5-10 个 attempts）。</dd>
   <dt>BM25</dt>
@@ -907,7 +907,7 @@ DefectIntent:
   <dt>CKG（Code Knowledge Graph）</dt>
   <dd>把仓库构造成图（class/function 节点 + 调用/继承 边）。Trae、LingmaAgent 都用类似结构。</dd>
   <dt>HITL（Human-in-the-loop）</dt>
-  <dd>人工审批关键节点。Torin 的 analyze 和 final PR 都有 HITL gate。</dd>
+  <dd>人工审批关键节点。Codewright 的 analyze 和 final PR 都有 HITL gate。</dd>
   <dt>Intent</dt>
   <dd>本文档语境下，指对原始 defect description 的结构化理解：expected/actual behavior、defect type、key terms、search hypotheses、unknowns 等。</dd>
   <dt>Mode collapse</dt>
@@ -924,11 +924,11 @@ DefectIntent:
   <dd>NeurIPS'24 论文，把 LLM repair 形式化为 arm-acquiring bandit，给出 explore vs exploit 的 principled 策略。</dd>
   <dt>SBFL（Spectrum-Based Fault Localization）</dt>
   <dd>用测试通过/失败覆盖差异打分定位 bug 行。需要先有失败测试。</dd>
-  <dt>Sandbox（Torin）</dt>
+  <dt>Sandbox（Codewright）</dt>
   <dd>Docker 容器，clone 了目标仓库。agent 通过 MCP server 暴露的 bash / read_file / list_files 工具操作，不能访问 host 文件系统。</dd>
   <dt>Scope declaration</dt>
   <dd>analyze agent 输出的"允许 implement 改动的文件清单"，filter 阶段会做 mechanical 检查砍掉超出范围的 patch。</dd>
-  <dt>Stage（Torin workflow stage）</dt>
+  <dt>Stage（Codewright workflow stage）</dt>
   <dd>analyze / reproduce / implement / filter / critic / hitl / pr 七个 stage，每个 stage 一个 TaskEvent 记录。</dd>
   <dt>Telephone game</dt>
   <dd>Cognition 用来形容多 agent 总结式 handoff 信息丢失的比喻。</dd>
@@ -942,7 +942,7 @@ DefectIntent:
 <hr />
 
 <div class="footnote">
-本文档基于 2026-05-17 的三份并行调研报告整合。所有论文引用均验证 URL 可达，但论文本身内容请以原文为准（特别是 ablation 数字会随论文版本更新）。如发现引用错误或需要补充更多细节，可在 Torin 项目里另开一篇 design doc 追加。
+本文档基于 2026-05-17 的三份并行调研报告整合。所有论文引用均验证 URL 可达，但论文本身内容请以原文为准（特别是 ablation 数字会随论文版本更新）。如发现引用错误或需要补充更多细节，可在 Codewright 项目里另开一篇 design doc 追加。
 </div>
 
 </div>

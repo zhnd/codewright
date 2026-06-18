@@ -1,4 +1,4 @@
-import { isTaskTerminal, type TaskStatus } from '@torin/domain';
+import { isTaskTerminal, type TaskStatus } from '@codewright/domain';
 import { builder } from '../../infrastructure/graphql/builder.js';
 import {
   type AttemptShape,

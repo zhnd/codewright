@@ -1,5 +1,5 @@
 {
-  "name": "@torin/sandbox",
+  "name": "@codewright/sandbox",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -17,8 +17,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@torin/githost": "workspace:*",
-    "@torin/shared": "workspace:*",
+    "@codewright/githost": "workspace:*",
+    "@codewright/shared": "workspace:*",
     "dockerode": "^5.0.0",
     "tar-stream": "^3.2.0"
   },

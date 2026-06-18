@@ -19,8 +19,8 @@
  * Note: this does NOT tear down leaked sandbox containers a terminated
  * workflow left behind — remove those with `docker rm -f <name>`.
  */
-import { prisma, type TaskStatus } from '@torin/database';
-import { createTemporalClient } from '@torin/workflow';
+import { prisma, type TaskStatus } from '@codewright/database';
+import { createTemporalClient } from '@codewright/workflow';
 
 const NON_TERMINAL: TaskStatus[] = ['PENDING', 'RUNNING'];
 const apply = process.argv.includes('--apply');

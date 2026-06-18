@@ -1,5 +1,5 @@
+import type { PullRequestResult } from '@codewright/domain';
 import { Octokit } from '@octokit/rest';
-import type { PullRequestResult } from '@torin/domain';
 import { firstAddedLinePosition } from '../diff-position.js';
 import type {
   AddReviewCommentsArgs,
@@ -86,7 +86,7 @@ export class GitHubClient implements GitHostClient {
       if (position == null) continue;
       comments.push({
         path: change.file,
-        body: `🤖 **Torin:** ${change.description}`,
+        body: `🤖 **Codewright:** ${change.description}`,
         position,
       });
     }

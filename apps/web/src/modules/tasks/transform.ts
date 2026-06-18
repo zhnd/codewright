@@ -1,4 +1,4 @@
-import type { EventLevel, StageStatus, TaskStage } from '@torin/domain';
+import type { EventLevel, StageStatus, TaskStage } from '@codewright/domain';
 import type {
   ActivityLevel,
   ActivityLogEntry,

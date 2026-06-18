@@ -46,7 +46,7 @@ export function createGitClient(opts: CreateGitClientOptions): GitHostClient {
   }
 }
 
-const GIT_TOKEN_ENV = 'TORIN_GIT_TOKEN';
+const GIT_TOKEN_ENV = 'CODEWRIGHT_GIT_TOKEN';
 
 export function gitCredentialsFor(provider: GitHostProvider): GitCredentials {
   switch (provider) {
@@ -73,13 +73,16 @@ export function defaultBotIdentity(provider: GitHostProvider): BotIdentity {
   switch (provider) {
     case 'github':
       return {
-        name: 'torin-bot',
-        email: 'torin-bot@users.noreply.github.com',
+        name: 'codewright-bot',
+        email: 'codewright-bot@users.noreply.github.com',
       };
     case 'cnb':
       // Email format pending verification against a real cnb account; treat
       // as a sensible default until §1 of the verification plan confirms it.
-      return { name: 'torin-bot', email: 'torin-bot@users.noreply.cnb.cool' };
+      return {
+        name: 'codewright-bot',
+        email: 'codewright-bot@users.noreply.cnb.cool',
+      };
     default: {
       const _exhaustive: never = provider;
       throw new Error(`Unknown git host provider: ${_exhaustive}`);

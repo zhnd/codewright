@@ -3,7 +3,7 @@ import { z } from 'zod/v4';
 /**
  * Oracle produced by the REPRODUCE phase. `mode` selects how FILTER runs it.
  *   test-framework — a proper test in the project's existing framework
- *   verify-script  — a standalone executable at .torin/verify.<ext>
+ *   verify-script  — a standalone executable at .codewright/verify.<ext>
  *   boot-verify    — web: start dev server, watch for clean boot + no errors
  *   none           — no oracle could be produced; HITL is the only validator
  */

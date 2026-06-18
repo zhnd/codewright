@@ -1,5 +1,5 @@
-import { prisma } from '@torin/database';
-import { createTemporalClient, TASK_QUEUE } from '@torin/workflow';
+import { prisma } from '@codewright/database';
+import { createTemporalClient, TASK_QUEUE } from '@codewright/workflow';
 import { repoUrl, type SweInstance } from './dataset.js';
 import { extractModelPatch } from './extract-patch.js';
 

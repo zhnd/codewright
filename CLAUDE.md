@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Torin is an AI-powered execution system for software engineering. It turns engineering tasks into executable systems — understanding tasks, breaking them into steps, executing with tools, tracking state across long-running workflows, recovering from failure, and remaining observable and controllable throughout.
+Codewright is an AI-powered execution system for software engineering. It turns engineering tasks into executable systems — understanding tasks, breaking them into steps, executing with tools, tracking state across long-running workflows, recovering from failure, and remaining observable and controllable throughout.
 
 ## Architecture
 
@@ -50,7 +50,7 @@ agent decides *what* to do; workflow activities *execute* it. Temporal is the ru
 
 ## Logging
 
-Structured logging via Pino (`@torin/shared`). Each package has a `src/logger.ts` exporting a single `log` instance. Dev: pino-pretty (colored). Prod: JSON. Control via `LOG_LEVEL` env var.
+Structured logging via Pino (`@codewright/shared`). Each package has a `src/logger.ts` exporting a single `log` instance. Dev: pino-pretty (colored). Prod: JSON. Control via `LOG_LEVEL` env var.
 
 ## Design Principles
 

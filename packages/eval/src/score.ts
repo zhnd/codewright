@@ -18,17 +18,17 @@ export function scoreWithSbCli(
 ): boolean {
   if (!existsSync(SB_CLI)) {
     console.log(
-      '\n⚠️  sb-cli venv not found. Run:  pnpm --filter @torin/eval setup'
+      '\n⚠️  sb-cli venv not found. Run:  pnpm --filter @codewright/eval setup'
     );
     return false;
   }
   if (!process.env.SWEBENCH_API_KEY) {
     console.log('\n⚠️  SWEBENCH_API_KEY not set — skipping cloud scoring.');
     console.log(
-      '   Get a free key:  pnpm --filter @torin/eval gen-key <your-email>'
+      '   Get a free key:  pnpm --filter @codewright/eval gen-key <your-email>'
     );
     console.log(
-      `   Then score:      pnpm --filter @torin/eval score ${predictionsPath}`
+      `   Then score:      pnpm --filter @codewright/eval score ${predictionsPath}`
     );
     return false;
   }

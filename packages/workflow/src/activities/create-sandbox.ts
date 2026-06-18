@@ -1,6 +1,6 @@
-import { prisma } from '@torin/database';
-import { defaultBotIdentity } from '@torin/githost';
-import { createSandbox, type SandboxState } from '@torin/sandbox';
+import { prisma } from '@codewright/database';
+import { defaultBotIdentity } from '@codewright/githost';
+import { createSandbox, type SandboxState } from '@codewright/sandbox';
 import { log } from '../logger.js';
 import { gitClientFor } from '../utils/git-context.js';
 import { npmrcFor } from '../utils/project-secrets.js';

@@ -44,7 +44,7 @@ export function LeftSidebar() {
           </div>
           <div className="min-w-0 flex-1 text-left">
             <div className="truncate text-[12.5px] font-semibold tracking-normal">
-              Torin
+              Codewright
             </div>
             <div className="-mt-px truncate font-mono text-[10px] text-foreground-subtle">
               AI execution

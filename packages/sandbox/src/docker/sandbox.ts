@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer';
 import path from 'node:path/posix';
-import type { GitHostProvider } from '@torin/githost';
+import type { GitHostProvider } from '@codewright/githost';
 import type Docker from 'dockerode';
 import type {
   ExecOptions,
@@ -90,7 +90,8 @@ export class DockerSandbox implements Sandbox {
       logFile?: string;
     } = {}
   ): Promise<{ commandId: string; logFile: string }> {
-    const logFile = options.logFile ?? `/tmp/torin-detached-${Date.now()}.log`;
+    const logFile =
+      options.logFile ?? `/tmp/codewright-detached-${Date.now()}.log`;
     // Redirect all output, close stdin, run in a new session so it
     // survives the exec teardown. tini (Init=true) reaps zombies.
     const wrapped = `setsid sh -c ${shellArg(`( ${command} ) >${logFile} 2>&1 </dev/null &`)}`;

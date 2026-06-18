@@ -54,7 +54,7 @@ export function MetricCard({
           </span>
         )}
         {emphasis && (
-          <span className="torin-pulse ml-auto h-1.5 w-1.5 self-center rounded-full bg-[color:var(--accent)]" />
+          <span className="codewright-pulse ml-auto h-1.5 w-1.5 self-center rounded-full bg-[color:var(--accent)]" />
         )}
       </div>
       {hint && (

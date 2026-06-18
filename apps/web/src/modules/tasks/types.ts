@@ -5,7 +5,7 @@ import type {
   StageStatus,
   TaskBadge,
   TaskStage,
-} from '@torin/domain';
+} from '@codewright/domain';
 
 // ── tasks list types ──────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-import { TaskStatus, TaskType } from '@torin/database';
+import { TaskStatus, TaskType } from '@codewright/database';
 import { builder } from '../../infrastructure/graphql/builder.js';
 
 /**

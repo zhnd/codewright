@@ -1,5 +1,5 @@
 {
-  "name": "@torin/domain",
+  "name": "@codewright/domain",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@torin/database": "workspace:*",
+    "@codewright/database": "workspace:*",
     "zod": "catalog:"
   }
 }

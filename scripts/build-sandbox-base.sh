@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Build the torin/sandbox-base image used by the Docker sandbox provider.
+# Build the codewright/sandbox-base image used by the Docker sandbox provider.
 #
 # Run this once on every worker host before the first task, and again whenever
 # docker/Dockerfile.sandbox-base changes or a new tag is cut.
 #
 # Usage:
-#   scripts/build-sandbox-base.sh          # builds torin/sandbox-base:1
-#   TAG=2 scripts/build-sandbox-base.sh    # builds torin/sandbox-base:2
+#   scripts/build-sandbox-base.sh          # builds codewright/sandbox-base:1
+#   TAG=2 scripts/build-sandbox-base.sh    # builds codewright/sandbox-base:2
 set -euo pipefail
 
 TAG="${TAG:-1}"
-IMAGE="torin/sandbox-base:${TAG}"
+IMAGE="codewright/sandbox-base:${TAG}"
 
 cd "$(dirname "$0")/.."
 

@@ -1,5 +1,5 @@
 {
-  "name": "@torin/web",
+  "name": "@codewright/web",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -16,7 +16,7 @@
     "@pierre/diffs": "^1.1.20",
     "@pierre/trees": "1.0.0-beta.3",
     "@tanstack/react-table": "^8.21.3",
-    "@torin/domain": "workspace:*",
+    "@codewright/domain": "workspace:*",
     "better-auth": "catalog:",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

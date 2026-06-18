@@ -1,4 +1,4 @@
-import type { DefectAnalysis } from '@torin/domain';
+import type { DefectAnalysis } from '@codewright/domain';
 import dedent from 'dedent';
 
 /**
@@ -92,7 +92,7 @@ export const REPRODUCE_SCRIPT_SYSTEM_PROMPT = dedent`
   HARD rules:
   - The script MUST exit non-zero when the defect is present (current HEAD).
   - The script MUST exit zero after the defect is fixed.
-  - Put it at \`.torin/verify.sh\` (or \`.torin/verify.py\` / \`.torin/verify.js\`
+  - Put it at \`.codewright/verify.sh\` (or \`.codewright/verify.py\` / \`.codewright/verify.js\`
     if the primary language is Python / Node).
   - The script must be deterministic, idempotent, no network, < 30s.
   - Demonstrate the defect by actually exercising the code path: import
@@ -103,8 +103,8 @@ export const REPRODUCE_SCRIPT_SYSTEM_PROMPT = dedent`
   When done, call the submit_result tool. Fields:
   {
     "mode": "verify-script",
-    "filePath": ".torin/verify.sh",
-    "runCommand": "bash .torin/verify.sh",
+    "filePath": ".codewright/verify.sh",
+    "runCommand": "bash .codewright/verify.sh",
     "content": "full content of the script",
     "confirmedFailing": true
   }

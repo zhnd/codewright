@@ -1,5 +1,5 @@
 {
-  "name": "@torin/solver",
+  "name": "@codewright/solver",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -17,10 +17,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@torin/agent-runtime": "workspace:*",
-    "@torin/domain": "workspace:*",
-    "@torin/sandbox": "workspace:*",
-    "@torin/shared": "workspace:*",
+    "@codewright/agent-runtime": "workspace:*",
+    "@codewright/domain": "workspace:*",
+    "@codewright/sandbox": "workspace:*",
+    "@codewright/shared": "workspace:*",
     "dedent": "^1.7.2"
   }
 }

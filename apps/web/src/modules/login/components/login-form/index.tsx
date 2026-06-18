@@ -20,7 +20,7 @@ export function LoginForm() {
   return (
     <div>
       <h2 className="m-0 text-[22px] font-semibold tracking-normal">
-        Sign in to Torin
+        Sign in to Codewright
       </h2>
       <p className="m-0 mt-1.5 mb-7 text-[13px] text-foreground-muted">
         Welcome back.

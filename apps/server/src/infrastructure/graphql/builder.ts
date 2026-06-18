@@ -1,11 +1,11 @@
+import { getDatamodel, prisma } from '@codewright/database';
+import type { default as PrismaTypes } from '@codewright/database/pothos-types';
 import SchemaBuilder from '@pothos/core';
 import DataloaderPlugin from '@pothos/plugin-dataloader';
 import PrismaPlugin from '@pothos/plugin-prisma';
 import RelayPlugin from '@pothos/plugin-relay';
 import ScopeAuthPlugin from '@pothos/plugin-scope-auth';
 import SimpleObjectsPlugin from '@pothos/plugin-simple-objects';
-import { getDatamodel, prisma } from '@torin/database';
-import type { default as PrismaTypes } from '@torin/database/pothos-types';
 import { DateTimeResolver, JSONResolver } from 'graphql-scalars';
 import type { Context } from './context.js';
 

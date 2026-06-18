@@ -1,4 +1,4 @@
-import type { FileChange, PullRequestResult } from '@torin/domain';
+import type { FileChange, PullRequestResult } from '@codewright/domain';
 
 export type GitHostProvider = 'github' | 'cnb';
 

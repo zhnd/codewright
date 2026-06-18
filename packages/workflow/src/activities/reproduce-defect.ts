@@ -1,6 +1,6 @@
-import type { DefectAnalysis, ReproductionOracle } from '@torin/domain';
-import type { SandboxState } from '@torin/sandbox';
-import { reproduceDefect } from '@torin/solver';
+import type { DefectAnalysis, ReproductionOracle } from '@codewright/domain';
+import type { SandboxState } from '@codewright/sandbox';
+import { reproduceDefect } from '@codewright/solver';
 import { log } from '../logger.js';
 import {
   type AgentActivityResult,

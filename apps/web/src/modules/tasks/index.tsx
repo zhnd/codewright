@@ -39,7 +39,7 @@ export function Tasks() {
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="mb-1.5 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.1em] text-foreground-subtle">
-              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-accent torin-pulse" />
+              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-accent codewright-pulse" />
               tasks · live · 5s
             </div>
             <h1 className="text-[26px] font-semibold leading-[1.05] tracking-normal text-foreground">

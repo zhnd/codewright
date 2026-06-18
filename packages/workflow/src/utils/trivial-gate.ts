@@ -2,7 +2,7 @@ import type {
   CriticReview,
   DefectAnalysis,
   ResolutionResult,
-} from '@torin/domain';
+} from '@codewright/domain';
 
 /**
  * Hard rules for "safe to auto-merge without human review". All must
@@ -10,7 +10,7 @@ import type {
  * (shipping a bug) is far greater than the cost of a human clicking
  * approve on a trivial change.
  *
- * The env flag TORIN_AUTO_APPROVE_TRIVIAL must also be 'true' — off by
+ * The env flag CODEWRIGHT_AUTO_APPROVE_TRIVIAL must also be 'true' — off by
  * default for safety.
  */
 
@@ -77,7 +77,7 @@ export function shouldAutoApproveAnalysis(
   if (envFlag !== 'true') {
     return {
       autoApprove: false,
-      reason: 'TORIN_AUTO_APPROVE_TRIVIAL not set to true',
+      reason: 'CODEWRIGHT_AUTO_APPROVE_TRIVIAL not set to true',
     };
   }
   if (analysis.riskClass !== 'trivial') {
@@ -104,7 +104,7 @@ export function isAutoApprovable(
   if (envFlag !== 'true') {
     return {
       autoApprove: false,
-      reason: 'TORIN_AUTO_APPROVE_TRIVIAL not set to true',
+      reason: 'CODEWRIGHT_AUTO_APPROVE_TRIVIAL not set to true',
     };
   }
   if (analysis.riskClass !== 'trivial') {

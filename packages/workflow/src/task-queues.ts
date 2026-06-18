@@ -8,7 +8,7 @@
  * Main task queue — carries workflow execution and lightweight activities
  * (DB updates, GitHub API calls). Concurrency is cheap here.
  */
-export const TASK_QUEUE = 'torin-main';
+export const TASK_QUEUE = 'codewright-main';
 
 /**
  * Sandbox task queue — carries every activity that touches a Docker
@@ -16,4 +16,4 @@ export const TASK_QUEUE = 'torin-main';
  * this queue is gated by SANDBOX_CONCURRENCY to protect host resources and
  * stay under model-API rate limits. Workflows themselves do NOT run here.
  */
-export const SANDBOX_TASK_QUEUE = 'torin-sandbox-heavy';
+export const SANDBOX_TASK_QUEUE = 'codewright-sandbox-heavy';

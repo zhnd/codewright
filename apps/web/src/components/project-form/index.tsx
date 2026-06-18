@@ -74,7 +74,7 @@ export function ProjectForm({
           <section>
             <SectionHead
               title="Repository"
-              subtitle="What Torin will analyze and patch"
+              subtitle="What Codewright will analyze and patch"
             />
             <div className="rounded-md border border-border bg-surface p-5">
               <div className="flex flex-col gap-4">
@@ -180,7 +180,7 @@ export function ProjectForm({
                           rows={6}
                           spellCheck={false}
                           className="font-mono text-[12px]"
-                          placeholder={`//npm.cnb.cool/:_authToken=\${TORIN_GIT_TOKEN}\n@scope:registry=https://npm.cnb.cool/group/npm/registry/`}
+                          placeholder={`//npm.cnb.cool/:_authToken=\${CODEWRIGHT_GIT_TOKEN}\n@scope:registry=https://npm.cnb.cool/group/npm/registry/`}
                           {...field}
                           value={field.value ?? ''}
                         />
@@ -188,7 +188,7 @@ export function ProjectForm({
                       <p className="mt-1 text-[11px] leading-snug text-foreground-subtle">
                         Use{' '}
                         <code className="rounded bg-surface-2 px-1 font-mono text-[10.5px]">
-                          {'${TORIN_GIT_TOKEN}'}
+                          {'${CODEWRIGHT_GIT_TOKEN}'}
                         </code>{' '}
                         to reference the access token without writing it to
                         disk. Pasting a literal token bakes it into the sandbox

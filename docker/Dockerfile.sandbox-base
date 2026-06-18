@@ -1,8 +1,8 @@
-# Torin sandbox base image.
+# Codewright sandbox base image.
 #
 # Deliberately minimal: no language runtimes are installed. Every repo
 # declares (or we auto-detect) its own toolchain, and mise pulls the right
-# versions into torin/repo:<key> at build time. Keeping this image lean
+# versions into codewright/repo:<key> at build time. Keeping this image lean
 # (~200MB) keeps the first-ever pull fast and avoids security surface for
 # languages a given deployment never uses.
 

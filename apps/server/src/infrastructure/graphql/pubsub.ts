@@ -11,7 +11,7 @@ import { log } from '../../logger.js';
  * burst of NOTIFYs from a single agent run collapses to one refetch.
  */
 
-const CHANNEL = 'torin_task_events';
+const CHANNEL = 'codewright_task_events';
 const DEBOUNCE_MS = 250;
 
 type Subscriber = () => void;

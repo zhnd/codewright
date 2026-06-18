@@ -1,10 +1,3 @@
-import {
-  CancellationScope,
-  condition,
-  defineSignal,
-  isCancellation,
-  setHandler,
-} from '@temporalio/workflow';
 import type {
   DefectAnalysis,
   ReproductionOracle,
@@ -12,8 +5,15 @@ import type {
   ResolveDefectInput,
   ReviewDecision,
   TaskStatus,
-} from '@torin/domain';
-import type { SandboxState } from '@torin/sandbox';
+} from '@codewright/domain';
+import type { SandboxState } from '@codewright/sandbox';
+import {
+  CancellationScope,
+  condition,
+  defineSignal,
+  isCancellation,
+  setHandler,
+} from '@temporalio/workflow';
 import { buildPrBody } from '../../utils/build-pr-body.js';
 import { runAnalyze } from './phases/analyze.js';
 import { runImplement } from './phases/implement.js';

@@ -15,7 +15,7 @@ export const CreateProjectInput = builder.inputType('CreateProjectInput', {
     }),
     npmrc: t.string({
       description:
-        'Multi-line .npmrc content for private registries. Supports ${ENV_VAR} interpolation; use ${TORIN_GIT_TOKEN} to reference the project git token without writing it to disk.',
+        'Multi-line .npmrc content for private registries. Supports ${ENV_VAR} interpolation; use ${CODEWRIGHT_GIT_TOKEN} to reference the project git token without writing it to disk.',
     }),
     previewCommand: t.string({
       description:

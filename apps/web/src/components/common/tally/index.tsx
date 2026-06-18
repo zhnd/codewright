@@ -9,14 +9,16 @@ interface TallyProps {
 /**
  * The signature decorative element in v2: a 1px dot-grid rule. Reads
  * as schematic / blueprint, not parchment. Kept under the `Tally` name
- * so callers don't churn — visually it's a `torin-dotgrid` band.
+ * so callers don't churn — visually it's a `codewright-dotgrid` band.
  */
 export function Tally({ variant = 'subtle', className }: TallyProps) {
   return (
     <div
       aria-hidden="true"
       className={cn(
-        variant === 'subtle' ? 'torin-dotgrid' : 'torin-dotgrid-dense',
+        variant === 'subtle'
+          ? 'codewright-dotgrid'
+          : 'codewright-dotgrid-dense',
         className
       )}
     />

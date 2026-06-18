@@ -1,11 +1,11 @@
 // ── Task / TaskEvent vocabulary ──────────────────────────
 //
-// Types are re-exported from @torin/database (Prisma-generated enums are
+// Types are re-exported from @codewright/database (Prisma-generated enums are
 // the single source of truth). This file owns the *business semantics* —
 // terminal-status sets, predicates, canonical pipeline order — that
 // Prisma can't infer from the schema alone.
 //
-// `@torin/domain` depends on `@torin/database` for **type-only** imports.
+// `@codewright/domain` depends on `@codewright/database` for **type-only** imports.
 // Type imports compile away, so consumers (web, server, workflow) don't
 // pull in any runtime database code.
 
@@ -14,13 +14,13 @@ export type {
   TaskEventStatus,
   TaskStageKey,
   TaskStatus,
-} from '@torin/database';
+} from '@codewright/database';
 
 import type {
   TaskEventStatus,
   TaskStageKey,
   TaskStatus,
-} from '@torin/database';
+} from '@codewright/database';
 
 export const CANONICAL_STAGE_ORDER: TaskStageKey[] = [
   'ANALYSIS',

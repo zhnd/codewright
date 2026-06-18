@@ -1,6 +1,6 @@
+import type { AnalyzeRepositoryInput, TaskStatus } from '@codewright/domain';
+import type { SandboxState } from '@codewright/sandbox';
 import { CancellationScope, isCancellation } from '@temporalio/workflow';
-import type { AnalyzeRepositoryInput, TaskStatus } from '@torin/domain';
-import type { SandboxState } from '@torin/sandbox';
 import { runAnalyze } from './phases/analyze.js';
 import { main, sandboxInfra } from './proxies.js';
 

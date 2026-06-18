@@ -1,5 +1,5 @@
 import { type Options, query } from '@anthropic-ai/claude-agent-sdk';
-import type { AgentObservation } from '@torin/domain';
+import type { AgentObservation } from '@codewright/domain';
 import type { ZodType } from 'zod/v4';
 import { log } from '../logger.js';
 import { createSubmitResultServer } from '../tools/submit-result-server.js';

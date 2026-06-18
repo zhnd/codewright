@@ -1,4 +1,4 @@
-import type { DefectAnalysis, ResolveDefectInput } from '@torin/domain';
+import type { DefectAnalysis, ResolveDefectInput } from '@codewright/domain';
 import { shouldAutoApproveAnalysis } from '../../../utils/trivial-gate.js';
 import { MAX_ANALYSIS_ROUNDS } from '../constants.js';
 import type { PhaseContext } from '../index.js';

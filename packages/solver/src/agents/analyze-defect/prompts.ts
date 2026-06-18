@@ -1,4 +1,4 @@
-import type { AnalysisResult, DefectIntent } from '@torin/domain';
+import type { AnalysisResult, DefectIntent } from '@codewright/domain';
 import dedent from 'dedent';
 
 export const ANALYZE_DEFECT_SYSTEM_PROMPT = dedent`

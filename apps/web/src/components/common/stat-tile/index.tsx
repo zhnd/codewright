@@ -87,7 +87,7 @@ export function StatTile({
 
       {emphasis && (
         <span
-          className="torin-pulse pointer-events-none absolute right-3 top-3 h-1.5 w-1.5 rounded-full"
+          className="codewright-pulse pointer-events-none absolute right-3 top-3 h-1.5 w-1.5 rounded-full"
           style={{ background: toneColor }}
         />
       )}

@@ -1,5 +1,5 @@
-import { prisma } from '@torin/database';
-import type { AnalysisResult } from '@torin/domain';
+import { prisma } from '@codewright/database';
+import type { AnalysisResult } from '@codewright/domain';
 import { log } from '../logger.js';
 
 /**

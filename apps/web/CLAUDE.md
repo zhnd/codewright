@@ -1,4 +1,4 @@
-# @torin/web
+# @codewright/web
 
 Frontend application for task visibility and control.
 
@@ -96,8 +96,8 @@ We target **Tailwind CSS v4+** and rely on its dynamic spacing scale. Spacing-fa
 
 ## Dependencies
 
-- `@torin/domain` — shared types (TaskStatus, ExecutionStatus, etc.)
-- `@torin/server` — all data via GraphQL API (no direct package imports at runtime)
+- `@codewright/domain` — shared types (TaskStatus, ExecutionStatus, etc.)
+- `@codewright/server` — all data via GraphQL API (no direct package imports at runtime)
 
 ## Key constraint
 

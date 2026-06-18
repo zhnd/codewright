@@ -1,8 +1,8 @@
-// @torin/agent-runtime — the agent execution engine (mechanism layer).
+// @codewright/agent-runtime — the agent execution engine (mechanism layer).
 // The ONLY package that imports the Claude Agent SDK. Owns the query
 // loop, observability, structured-output parsing, and the sandbox tool
 // surface. Knows nothing about defects/localization/repair — that is the
-// strategy layer (@torin/solver).
+// strategy layer (@codewright/solver).
 
 export { type AgentObserver, createObserver } from './driver/observer.js';
 export {

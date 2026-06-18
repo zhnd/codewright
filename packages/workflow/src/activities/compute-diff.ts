@@ -1,5 +1,5 @@
-import type { FileDiff } from '@torin/domain';
-import { connectSandbox, type SandboxState } from '@torin/sandbox';
+import type { FileDiff } from '@codewright/domain';
+import { connectSandbox, type SandboxState } from '@codewright/sandbox';
 import { log } from '../logger.js';
 
 function shellArg(input: string): string {

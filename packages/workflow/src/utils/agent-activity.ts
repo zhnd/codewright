@@ -1,16 +1,16 @@
-import { Context } from '@temporalio/activity';
-import { type AgentObserver, createObserver } from '@torin/agent-runtime';
+import { type AgentObserver, createObserver } from '@codewright/agent-runtime';
 import {
   AGENT_INVOCATION_STATUS,
   type AgentInvocationStatusValue,
   type AgentInvocationTrace,
   type AgentObservation,
-} from '@torin/domain';
+} from '@codewright/domain';
 import {
   connectSandbox,
   type Sandbox,
   type SandboxState,
-} from '@torin/sandbox';
+} from '@codewright/sandbox';
+import { Context } from '@temporalio/activity';
 import { log } from '../logger.js';
 
 /**

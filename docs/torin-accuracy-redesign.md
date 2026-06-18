@@ -1,4 +1,4 @@
-# Torin 准确率重设计 — 证据支撑的改进路线图
+# Codewright 准确率重设计 — 证据支撑的改进路线图
 
 > 基于 6 路文献/工业调研(2023–2026)综合。目标:**业界最强 bug-fix agent,准确率优先,面向真实仓库(含前端)。**
 > 本文由调研主导提案,标注每条的**来源**与**杠杆强度**,并明确哪些是**之前没纳入**的新方向。
@@ -8,7 +8,7 @@
 
 ## 0. 结论先行(按"性价比"排序的杠杆)
 
-| # | 杠杆 | 证据强度 | Torin 现状 |
+| # | 杠杆 | 证据强度 | Codewright 现状 |
 |---|---|---|---|
 | L1 | **补丁可应用性**:别让模型手写 diff,沙箱改文件 → `git diff` 出规范补丁 | 强(apply 失败占人工干预 ~60%;格式可让同模型摆动 10×) | ❌ 现在是模型手写 diff(astropy apply 失败正是此) |
 | L2 | **采样 + 选择**(best-of-N + 强选择器) | 最强且最可操作(pass@N 是天花板,选择是瓶颈;oracle gap +26–30pp) | ⚠️ 有 best-of-N + 执行驱动选择,但选择器弱(纯 pass/fail) |
@@ -19,27 +19,27 @@
 | L7 | **学习闭环**(Reflexion 重试 + 跨任务记忆 + 每仓缓存) | 中(ReasoningBank +4.6pp SWE-bench;失败轨迹价值 > 成功) | ⚠️ 有 trace 持久化,但没回灌 |
 | L8 | **定位上下文质量 > 数量**(repo-map + 代码图工具,~6–10 文件) | 中强(RepoGraph +32.8%;行级上下文常**降低**准确率) | ⚠️ 有 repoNavigation 雏形,无 repo-map/代码图 |
 
-> **架构共识**:没有"更多 agent"的红利。SOTA 形态 = **一个好 agent(或几个异构生成器)→ N 候选 → 执行/测试过滤 → 投票/verifier 选择**,即"agentic 生成 + pipeline 验证"的混合——**正是 Torin 现在的骨架**。负面结论:专门的"修回归 agent"没用、thinking-mode 没用、30-agent 编排输给单 agent+规模(Augment / Aide / CodeStory 实证)。
+> **架构共识**:没有"更多 agent"的红利。SOTA 形态 = **一个好 agent(或几个异构生成器)→ N 候选 → 执行/测试过滤 → 投票/verifier 选择**,即"agentic 生成 + pipeline 验证"的混合——**正是 Codewright 现在的骨架**。负面结论:专门的"修回归 agent"没用、thinking-mode 没用、30-agent 编排输给单 agent+规模(Augment / Aide / CodeStory 实证)。
 
 ---
 
-## 1. 准确率杠杆详解(分领域 + 落到 Torin)
+## 1. 准确率杠杆详解(分领域 + 落到 Codewright)
 
 ### L1 · 补丁可应用性 —— **先修,这是活着的 bug**
 
 **证据**:apply 失败 ≈ 人工干预的 60%(Morph);edit 格式能让同一模型从 6.7%→68.3%(10×);**模型手写 unified diff 的失败类**=漏上下文行/漏 `+`/吃掉缩进/**编造 hunk 头与行号**——与我们 astropy 的"编造 git index 行"一模一样(Aider unified-diffs)。`applicability` 与 resolved 率**统计正相关**(Diff-XYZ/FEA-Bench)。
 
-**改法(Torin)**:
+**改法(Codewright)**:
 1. implement agent **不再输出 diff**,改用 **SEARCH/REPLACE 编辑块**(`old_str`/`new_str`,无行号);
-2. **让沙箱当编辑器**:agent 改工作树 → Torin 跑 **`git diff` 生成规范补丁**(git 永远产出可应用的 diff)。这正好贴 Torin 的 Docker-sandbox + git-host 架构;
+2. **让沙箱当编辑器**:agent 改工作树 → Codewright 跑 **`git diff` 生成规范补丁**(git 永远产出可应用的 diff)。这正好贴 Codewright 的 Docker-sandbox + git-host 架构;
 3. 编辑步加**分层模糊匹配**(exact→去空白→相对缩进,Aider 关掉模糊 →9× 错误);非唯一匹配则要求 agent 补上下文;
 4. 每次编辑后**校验是否落地**,失败**响亮报错**让 agent 在回路内重试。
 - 落点:`packages/solver/.../implement-resolution`、`packages/sandbox`(git diff 导出)、`extract-patch`(改为读 git diff 而非 CRITIC 的手写 diff)。
 - 来源:Aider unified-diffs / search-replace;Diff-XYZ(2510.12487);Inside-the-Scaffold(2604.03515);Sumit Gouthaman / Morph。
 
-### L2 · 采样 + 选择 —— **最大可操作杠杆,Torin 脊梁的升级**
+### L2 · 采样 + 选择 —— **最大可操作杠杆,Codewright 脊梁的升级**
 
-**证据**:pass@N 是任何选择法的天花板,且随 N **对数线性**增长;oracle pass@1→pass@N 差距常 **+26–30pp**,好选择器能收回 40–60%。Torin 现在的选择器是"执行驱动 pass/fail",**区分度不足**(同样通过的补丁无法排序,Best@K 早早 plateau)。
+**证据**:pass@N 是任何选择法的天花板,且随 N **对数线性**增长;oracle pass@1→pass@N 差距常 **+26–30pp**,好选择器能收回 40–60%。Codewright 现在的选择器是"执行驱动 pass/fail",**区分度不足**(同样通过的补丁无法排序,Best@K 早早 plateau)。
 
 **改法(按性价比)**:
 1. **选择级联**(Nemotron-Cascade):回归通过数 → 复现测试通过数 → **多数投票 → 最小补丁长度**。替换单一分数选择。
@@ -73,7 +73,7 @@
 
 **证据**:**没有公开的 UI-repair benchmark**(最接近 SWE-bench Multimodal,最强系统仅 12.2% resolved)——蓝海;但工具全部 production-grade。SWE-bench M 实证:Python 式定位在 JS 上崩(Agentless F1 0.142),**图片是必需的**(去掉图片 13%→8.7%)。
 
-**改法(Torin 已能在沙箱跑 dev server + Playwright)**:
+**改法(Codewright 已能在沙箱跑 dev server + Playwright)**:
 1. **浏览器优先定位(永不 grep 优先)**:起 dev server → Playwright 抓**实时 DOM 的真实标签集** + a11y 快照。**一眼看出 iframe vs video,且权威性高于按名 grep。** 这一步结构性消除本次失败。
 2. **build 期注入源码溯源**:dev 构建注入 `data-source="file:line"` / `data-component`(Sentry 同款 babel 插件)→ "功能→组件"**塌缩成一次属性读取**;免疫 React 内部变动。
    > React 19 移除了 `_debugSource`(PR #28265)→ 需版本探测,回退 `__source` / `data-*` / bippy。
@@ -87,14 +87,14 @@
 **改法**:① 流水线前加**bug-abstention 门**(题太烂/太模糊直接跳,省算力);② PR 前加**提交置信门**(低于阈值不开 PR,转人工)。**对你"开真实 PR"的场景:一个错 PR 的代价远高于一次跳过。**
 - 来源:Abstain-and-Validate(2510.03217)、BouncerBench(2506.17812)。
 
-### L7 · 学习闭环 —— **把 Torin 的 trace 资产变成持续变强(全新)**
+### L7 · 学习闭环 —— **把 Codewright 的 trace 资产变成持续变强(全新)**
 
-**证据**:**失败轨迹比成功更有学习价值,而多数系统把它丢了**——Torin 已持久化失败阶段事件,正是别人当废料的高价值数据。但**检索精度压倒一切**:naive 记忆**会降低**准确率。
+**证据**:**失败轨迹比成功更有学习价值,而多数系统把它丢了**——Codewright 已持久化失败阶段事件,正是别人当废料的高价值数据。但**检索精度压倒一切**:naive 记忆**会降低**准确率。
 
 **改法(按先后)**:
-1. **重试时 Reflexion(先上)**:失败后从"测试+reviewer 信号"蒸馏一条结构化反思,注入**重试**(Torin 已有别人没有的 evaluator 信号);贴 Temporal retry。
+1. **重试时 Reflexion(先上)**:失败后从"测试+reviewer 信号"蒸馏一条结构化反思,注入**重试**(Codewright 已有别人没有的 evaluator 信号);贴 Temporal retry。
 2. **ReasoningBank 式跨任务记忆**:`{title, description, content}`,从**成功与失败**两边蒸馏,行动前检索;用 SWE-Exp 的三级 schema(理解/定位/补丁)。
-3. **每仓 onboarding 缓存**:tree-sitter/PageRank repo-map + 累积的"约定/坑"简报,mtime 失效——Torin 反复打同一批仓库,ROI 高。
+3. **每仓 onboarding 缓存**:tree-sitter/PageRank repo-map + 累积的"约定/坑"简报,mtime 失效——Codewright 反复打同一批仓库,ROI 高。
 4. **投资检索精度,不是体量**(带门控,A/B 量化)。
 - 来源:Reflexion(2303.11366)、ReasoningBank(Google)、SWE-Exp(2507.23361)/ExpeRepair(2506.10484)、AWM(2409.07429)、Aider repo-map。
 
@@ -108,7 +108,7 @@
 ### 持久化 / 可观测(配套,贴 Temporal 栈)
 
 - **`continue-as-new`** 显式用于长修复循环(避免 event-history 撑爆);**沙箱阶段边界快照**(失败补丁回滚**文件系统**,不只是 workflow 状态)——连 OpenHands/Aider 都没闭合这个;HITL 作**durable signal**;**OTel GenAI 语义约定 + Baggage**(任务/仓库 id 放 root span 经 Baggage 传播,否则 Langfuse 等按 span 聚合时无法过滤);**自动失败归因不可靠(~50%)**,记忆写入走**已验证结果**(reviewer+测试),模型猜的归因仅作提示。
-- 验证:**OpenAI 的 Codex 就跑在 Temporal 上(生产、百万级)**——Torin 架构被外部背书。
+- 验证:**OpenAI 的 Codex 就跑在 Temporal 上(生产、百万级)**——Codewright 架构被外部背书。
 - 来源:Temporal-for-agents、OpenHands SDK(2511.03690)、OTel GenAI、Who&When(2505.00212)。
 
 ---
@@ -151,7 +151,7 @@
 
 ## 4. 与现有资产/文档的关系
 
-- Torin 已有的 **Agentless 式 localize→reproduce→implement→validate、执行驱动选择、baseline-differential(`oracleVerified`=F→P,正是 SWT-bench 准则)、analyze 后 HITL 闸门、per-stage trace + Temporal** —— 调研一致认为**骨架方向正确**;本文是"在对的骨架上补杠杆"。
+- Codewright 已有的 **Agentless 式 localize→reproduce→implement→validate、执行驱动选择、baseline-differential(`oracleVerified`=F→P,正是 SWT-bench 准则)、analyze 后 HITL 闸门、per-stage trace + Temporal** —— 调研一致认为**骨架方向正确**;本文是"在对的骨架上补杠杆"。
 - 与 [`localization-mechanism-gate-design.md`](./localization-mechanism-gate-design.md) 互补:那份细化"定位+机制闸门/工单增强/排序候选/reject 重定位";本文给全景排序 + 选择/可应用性/前端/学习闭环。
 
 ---

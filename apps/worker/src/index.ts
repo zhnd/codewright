@@ -1,14 +1,14 @@
 import { fileURLToPath } from 'node:url';
+import { cleanupOrphanBuilders, pruneStaleImages } from '@codewright/sandbox';
+import { SANDBOX_TASK_QUEUE, TASK_QUEUE } from '@codewright/workflow';
+import * as activities from '@codewright/workflow/activities';
 import { NativeConnection, Worker } from '@temporalio/worker';
-import { cleanupOrphanBuilders, pruneStaleImages } from '@torin/sandbox';
-import { SANDBOX_TASK_QUEUE, TASK_QUEUE } from '@torin/workflow';
-import * as activities from '@torin/workflow/activities';
 import { log } from './logger.js';
 
 const SANDBOX_CONCURRENCY = parseIntEnv('SANDBOX_CONCURRENCY', 4);
 const MAIN_CONCURRENCY = parseIntEnv('WORKER_CONCURRENCY', 40);
 const PRUNE_INTERVAL_MS = parseIntEnv(
-  'TORIN_IMAGE_PRUNE_INTERVAL_MS',
+  'CODEWRIGHT_IMAGE_PRUNE_INTERVAL_MS',
   24 * 60 * 60 * 1000
 );
 
@@ -60,7 +60,7 @@ async function main() {
     namespace: 'default',
     taskQueue: TASK_QUEUE,
     workflowsPath: fileURLToPath(
-      import.meta.resolve('@torin/workflow/workflows')
+      import.meta.resolve('@codewright/workflow/workflows')
     ),
     activities,
     maxConcurrentActivityTaskExecutions: MAIN_CONCURRENCY,

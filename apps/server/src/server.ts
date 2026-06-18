@@ -1,5 +1,5 @@
+import { loggerConfig } from '@codewright/shared';
 import cors from '@fastify/cors';
-import { loggerConfig } from '@torin/shared';
 import Fastify from 'fastify';
 import { validateEnv } from './infrastructure/env.js';
 import { registerRoutes } from './infrastructure/routes/index.js';

@@ -1,6 +1,6 @@
-import type { AgentObserver } from '@torin/agent-runtime';
-import { runAgent } from '@torin/agent-runtime';
-import { type DefectIntent, defectIntentSchema } from '@torin/domain';
+import type { AgentObserver } from '@codewright/agent-runtime';
+import { runAgent } from '@codewright/agent-runtime';
+import { type DefectIntent, defectIntentSchema } from '@codewright/domain';
 import {
   buildTriageDefectIntentUserPrompt,
   TRIAGE_DEFECT_INTENT_SYSTEM_PROMPT,

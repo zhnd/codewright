@@ -1,10 +1,10 @@
-import type { PrismaClient } from '@torin/database';
+import type { PrismaClient } from '@codewright/database';
 import {
   CANONICAL_STAGE_ORDER,
   type TaskEventKind,
   type TaskEventStatus,
   type TaskStageKey,
-} from '@torin/domain';
+} from '@codewright/domain';
 
 // Per-field batch loaders for the derived stage view exposed on Task.
 // Each public load function takes a batch of taskIds (DataLoader-style)

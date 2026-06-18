@@ -1,3 +1,3 @@
-import { createLogger } from '@torin/shared';
+import { createLogger } from '@codewright/shared';
 
 export const log = createLogger('sandbox');

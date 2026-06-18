@@ -51,7 +51,7 @@ export function MiniTrack({
             className={cn(
               'h-0.75 w-4 rounded-[1px]',
               cls,
-              (st === 'running' || st === 'awaiting') && 'torin-pulse'
+              (st === 'running' || st === 'awaiting') && 'codewright-pulse'
             )}
           />
         );

@@ -55,7 +55,7 @@ export function buildAwaitingRows(
       stage: t.awaiting?.stageKey?.toLowerCase() ?? 'hitl',
       risk: 'medium',
       waited: formatRelative(t.updatedAt, now),
-      branch: `torin/${t.id.slice(-8)}`,
+      branch: `codewright/${t.id.slice(-8)}`,
     }));
 }
 

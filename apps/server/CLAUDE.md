@@ -1,13 +1,13 @@
-# @torin/server
+# @codewright/server
 
-GraphQL API entry point for the Torin system.
+GraphQL API entry point for the Codewright system.
 
 ## Responsibilities
 
 - Expose GraphQL API via Apollo Server + Fastify (queries, mutations)
 - Validate and transform incoming requests
-- Delegate task execution to Temporal via `@torin/workflow` client
-- Serve task status and results to `@torin/web`
+- Delegate task execution to Temporal via `@codewright/workflow` client
+- Serve task status and results to `@codewright/web`
 
 ## Tech stack
 
@@ -18,10 +18,10 @@ GraphQL API entry point for the Torin system.
 
 ## Dependencies
 
-- `@torin/database` — Prisma client, Pothos types
-- `@torin/workflow` — start and query workflows
-- `@torin/githost` — `parseRepoUrl` for project URL/provider validation in services
-- `@torin/shared` — logger, utilities
+- `@codewright/database` — Prisma client, Pothos types
+- `@codewright/workflow` — start and query workflows
+- `@codewright/githost` — `parseRepoUrl` for project URL/provider validation in services
+- `@codewright/shared` — logger, utilities
 
 ## Internal structure
 

@@ -11,7 +11,7 @@
       "cache": false
     },
     "codegen": {
-      "dependsOn": ["@torin/server#generate"],
+      "dependsOn": ["@codewright/server#generate"],
       "outputs": ["src/__generated__/**"]
     },
     "check-types": {

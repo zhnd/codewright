@@ -1,11 +1,11 @@
-import { Prisma, prisma } from '@torin/database';
+import { Prisma, prisma } from '@codewright/database';
 import {
   isStageEventTerminal,
   isTaskTerminal,
   type TaskEventStatus,
   type TaskStageKey,
   type TaskStatus,
-} from '@torin/domain';
+} from '@codewright/domain';
 import { log } from '../logger.js';
 
 export interface UpdateTaskInput {
