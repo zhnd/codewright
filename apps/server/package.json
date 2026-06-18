@@ -11,6 +11,7 @@
     "clean": "node ../../scripts/rm.mjs dist",
     "build": "tsc -b .",
     "generate": "pnpm tsx --conditions development scripts/export-schema.ts",
+    "reconcile-tasks": "tsx --conditions development --env-file=../../.env scripts/reconcile-tasks.ts",
     "start:migrate:prod": "pnpm --filter @torin/database migrate:deploy && pnpm start"
   },
   "dependencies": {
