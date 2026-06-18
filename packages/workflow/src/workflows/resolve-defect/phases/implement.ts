@@ -101,6 +101,10 @@ export async function runImplement(
         const reset = await sandboxInfra.resetSandboxActivity({
           state: ctx.sandboxState,
           ...(detectedBaseBranch ? { baseBranch: detectedBaseBranch } : {}),
+          // Keep eval samples pinned to the instance's base_commit. Without
+          // this, the reset would jump to the default-branch tip (years of
+          // upstream fixes), making the defect already-fixed and unrepairable.
+          ...(input.baseCommit ? { commit: input.baseCommit } : {}),
         });
         detectedBaseBranch = reset.baseBranch;
         // `git reset --hard origin/<base>` discarded the oracle commit
@@ -131,6 +135,12 @@ export async function runImplement(
         reviewerFeedback,
         preconditionViolations,
       });
+
+      // Snapshot HEAD (base + committed oracle) BEFORE the agent edits, so we
+      // can derive the canonical fix-only patch from git afterwards.
+      const preFixSha = await sandboxInfra.captureHeadShaActivity(
+        ctx.sandboxState
+      );
 
       const implementOut = await sandboxAgent.implementResolutionActivity(
         ctx.sandboxState,
@@ -168,6 +178,34 @@ export async function runImplement(
       if (userBaseBranch) {
         result.baseBranch = userBaseBranch;
       }
+
+      // L1 — never trust the agent's hand-authored diff (it routinely fails to
+      // apply: fabricated index lines, wrong hunk headers). Derive the real,
+      // applyable patch from the sandbox via `git diff` against the pre-fix
+      // HEAD. An empty diff means the agent changed nothing on disk (no-op /
+      // already-fixed hallucination) → not a real candidate, drop the sample.
+      const canonicalDiff = await sandboxInfra.computeCanonicalDiffActivity({
+        state: ctx.sandboxState,
+        baseRef: preFixSha,
+      });
+      if (canonicalDiff.length === 0) {
+        attemptMemos.push({
+          attemptNum: attemptMemos.length + 1,
+          summary:
+            'implementResolution reported success but produced no file changes on disk',
+          filesChanged: [],
+          failureReasons: [
+            'No diff vs pre-fix HEAD — the agent likely hallucinated an already-applied fix. Make a real source edit.',
+          ],
+        });
+        continue;
+      }
+      const reasonByFile = new Map(result.diff.map((d) => [d.file, d.reason]));
+      result.diff = canonicalDiff.map((d) => ({
+        ...d,
+        reason: reasonByFile.get(d.file) ?? d.reason,
+      }));
+      result.filesChanged = canonicalDiff.map((d) => d.file);
 
       const filterResult = await sandboxInfra.filterCandidateActivity({
         state: ctx.sandboxState,

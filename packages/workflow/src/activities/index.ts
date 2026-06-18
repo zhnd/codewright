@@ -4,6 +4,10 @@ export { analyzeDefectActivity } from './analyze-defect.js';
 export { applyOracleActivity } from './apply-oracle.js';
 export { checkPreconditionsActivity } from './check-preconditions.js';
 export { commitOracleActivity } from './commit-oracle.js';
+export {
+  captureHeadShaActivity,
+  computeCanonicalDiffActivity,
+} from './compute-diff.js';
 export { createPullRequestActivity } from './create-pull-request.js';
 export { createSandboxActivity } from './create-sandbox.js';
 export { criticResolutionActivity } from './critic-resolution.js';
