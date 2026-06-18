@@ -183,6 +183,8 @@ async function warmStart(
 ): Promise<void> {
   await configureGitIdentity(sandbox, gitUser);
   await registerCredentialHelper(sandbox);
+  // Cached image already has the working tree → safe to set repo-local config.
+  await disableRepoHooks(sandbox);
 
   const targetBranch = source.branch ?? 'HEAD';
   const fetchCmd = source.branch
@@ -277,6 +279,7 @@ async function bootstrapFromScratch(
       `Failed to clone ${source.repo}: ${cloneResult.stderr || cloneResult.stdout}`
     );
   }
+  await disableRepoHooks(sandbox);
 
   if (source.commit) {
     await checkoutCommit(sandbox, source.commit);
@@ -332,6 +335,24 @@ async function configureGitIdentity(
     `git config --global user.name ${shellArg(gitUser.name)} && git config --global user.email ${shellArg(gitUser.email)}`,
     { timeoutMs: 10_000 }
   );
+}
+
+/**
+ * Neutralize the repo's git hooks for EVERY sandbox commit. Real-world repos
+ * ship husky / lint-staged / commitlint pre-commit + commit-msg hooks for
+ * human contributors; they lint/format/typecheck staged files and reject
+ * non-conventional messages — blocking Torin's automated oracle + implement
+ * commits (`git commit failed … Preparing lint-staged…`).
+ *
+ * Must be set in the REPO-LOCAL config: husky writes `core.hooksPath` into
+ * `.git/config`, and local config beats `--global`. Pointing it at an empty
+ * path makes git run no hooks at all, for activity- and agent-driven commits
+ * alike. Caller must invoke this only once the working tree exists.
+ */
+async function disableRepoHooks(sandbox: DockerSandbox): Promise<void> {
+  await sandbox.exec('git config --local core.hooksPath /dev/null', {
+    timeoutMs: 10_000,
+  });
 }
 
 async function registerCredentialHelper(sandbox: DockerSandbox): Promise<void> {
