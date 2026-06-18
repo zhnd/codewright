@@ -1,10 +1,10 @@
 import type { DefectAnalysis, ReproductionOracle } from '@torin/domain';
-import { connectSandbox, type SandboxState } from '@torin/sandbox';
+import type { SandboxState } from '@torin/sandbox';
 import { reproduceDefect } from '@torin/solver';
 import { log } from '../logger.js';
 import {
   type AgentActivityResult,
-  runAgentInActivity,
+  runSandboxAgentInActivity,
 } from '../utils/agent-activity.js';
 
 export async function reproduceDefectActivity(
@@ -19,11 +19,11 @@ export async function reproduceDefectActivity(
     },
     'Starting reproduction activity'
   );
-  const sandbox = await connectSandbox(state);
-  const out = await runAgentInActivity(
+  const out = await runSandboxAgentInActivity(
+    state,
     'reproduce',
     'reproduceDefect',
-    (observer) => reproduceDefect(sandbox, analysis, observer)
+    (sandbox, observer) => reproduceDefect(sandbox, analysis, observer)
   );
   if (out.result) {
     log.info(

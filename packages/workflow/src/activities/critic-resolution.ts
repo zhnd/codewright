@@ -4,12 +4,12 @@ import type {
   ReproductionOracle,
   ResolutionResult,
 } from '@torin/domain';
-import { connectSandbox, type SandboxState } from '@torin/sandbox';
+import type { SandboxState } from '@torin/sandbox';
 import { criticResolution } from '@torin/solver';
 import { log } from '../logger.js';
 import {
   type AgentActivityResult,
-  runAgentInActivity,
+  runSandboxAgentInActivity,
 } from '../utils/agent-activity.js';
 
 export async function criticResolutionActivity(
@@ -26,11 +26,11 @@ export async function criticResolutionActivity(
     },
     'Starting critic review activity'
   );
-  const sandbox = await connectSandbox(state);
-  const out = await runAgentInActivity(
+  const out = await runSandboxAgentInActivity(
+    state,
     'critic',
     'criticResolution',
-    (observer) =>
+    (sandbox, observer) =>
       criticResolution(
         sandbox,
         defectDescription,

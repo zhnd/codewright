@@ -6,6 +6,11 @@ import {
   type AgentInvocationTrace,
   type AgentObservation,
 } from '@torin/domain';
+import {
+  connectSandbox,
+  type Sandbox,
+  type SandboxState,
+} from '@torin/sandbox';
 import { log } from '../logger.js';
 
 /**
@@ -87,4 +92,30 @@ export async function runAgentInActivity<T>(
   } finally {
     clearInterval(heartbeatTimer);
   }
+}
+
+/**
+ * Like {@link runAgentInActivity} but connects the sandbox INSIDE the
+ * guarded body, so a connection failure (container gone, daemon down,
+ * lost between stages) becomes a structured ERROR result with a real
+ * reason — persisted as one invocation trace — instead of a bare throw
+ * that surfaces only as Temporal's opaque "Activity task failed" and
+ * leaves zero diagnostics in the DB.
+ */
+export async function runSandboxAgentInActivity<T>(
+  state: SandboxState,
+  stage: string,
+  agentName: string,
+  fn: (sandbox: Sandbox, observer: AgentObserver) => Promise<T>
+): Promise<AgentActivityResult<T>> {
+  return runAgentInActivity(stage, agentName, async (observer) => {
+    let sandbox: Sandbox;
+    try {
+      sandbox = await connectSandbox(state);
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      throw new Error(`${agentName}: failed to connect sandbox: ${reason}`);
+    }
+    return fn(sandbox, observer);
+  });
 }
