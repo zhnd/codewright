@@ -34,12 +34,33 @@ export const REPRODUCE_TEST_SYSTEM_PROMPT = dedent`
   - Otherwise write a NEW test (co-located or in tests/) using
     mcp__sandbox__write_file, and set filePath + content to what you wrote.
 
+  ## runCommand discipline (critical — FILTER re-runs this EXACT string)
+  The runCommand is replayed later, unmodified, by an automated checker on
+  a fresh checkout. It must be robust and self-sufficient:
+  - Run the test IN PLACE from the repo root using the project's standard
+    invocation. Do NOT copy the test file (or conftest/fixtures) to /tmp or
+    any other directory — that breaks fixture/conftest discovery and import
+    paths. Run it where it lives.
+  - Use an interpreter/binary that actually exists in the sandbox. There may
+    be no bare \`python\` — prefer \`python3 -m pytest <path>\` (or the repo's
+    runner: \`tox\`, \`pytest\`, \`pnpm vitest run\`, etc.). Verify the binary
+    resolves before relying on it.
+  - The command MUST fail because of the assertion/defect itself — NOT
+    because of a setup error (missing file, missing interpreter, wrong path,
+    aborted \`&&\` chain). A non-test failure is NOT a valid reproduction.
+  - Submit the runCommand BYTE-FOR-BYTE as the command you actually ran and
+    watched fail. Never reconstruct, simplify, or "clean it up" afterward —
+    if you had to adjust paths/interpreter to make it run, the adjusted
+    command is the one to submit.
+
   Steps:
   1. Read the affected files + a sample existing test to learn conventions.
   2. Write the new test in the appropriate location (co-located or in tests/).
-  3. Run the test: it MUST report a failure pointing at the defect.
-  4. If it passes, the test is wrong — rewrite it.
-  5. Return the result.
+  3. Run the test with your candidate runCommand: it MUST report a real test
+     failure pointing at the defect (not a setup/env error).
+  4. If it passes, the test is wrong — rewrite it. If it errors for a setup
+     reason, fix the command until the failure is a genuine assertion failure.
+  5. Return the result, submitting the exact runCommand you verified.
 
   When done, call the submit_result tool. Fields:
   {
