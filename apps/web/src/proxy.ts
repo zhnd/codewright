@@ -4,7 +4,7 @@ const AUTH_ROUTES = ['/login', '/register'];
 const PUBLIC_ROUTES = [...AUTH_ROUTES];
 const SESSION_COOKIE = 'better-auth.session_token';
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession = request.cookies.has(SESSION_COOKIE);
 
