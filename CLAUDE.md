@@ -46,6 +46,8 @@ agent decides *what* to do; workflow activities *execute* it. Temporal is the ru
 - `pnpm -r check-types` — type check all packages
 - `pnpm format-fix` / `pnpm lint-fix` — format and lint via Biome
 - `pnpm docker:up:dev` — start Postgres, Temporal, Temporal UI
+- `pnpm dev` — full local stack (docker + server + worker + web) in one [mprocs](https://github.com/pvolok/mprocs) TUI; see `mprocs.yaml`. App procs gate on docker via `scripts/wait-for-dev-services.mjs`. Press `q` to stop everything, including containers.
+- `pnpm dev:apps` — app dev servers only, via Turborepo (assumes docker already up)
 - Dev scripts use `tsx watch --conditions development --env-file=../../.env`
 
 ## Logging

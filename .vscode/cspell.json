@@ -6,16 +6,19 @@
   "language": "en",
   // words - list of words to be always considered correct
   "words": [
+    "codewright",
     "cuid",
     "Datamodel",
     "githubusercontent",
     "HITL",
     "mkdirp",
+    "mprocs",
+    "pino",
     "pothos",
+    "procs",
     "Reflexion",
     "streetsidesoftware",
     "temporalio",
-    "codewright",
     "tsmerge",
     "visualstudio",
     "vsmarketplacebadge"

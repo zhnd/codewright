@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/pvolok/mprocs/master/schemas/mprocs.json
+# Local full-stack dev orchestration for Codewright.
+#
+#   pnpm dev      # start everything in one TUI
+#
+# `docker` brings up Postgres + Temporal in the foreground; `server` and
+# `worker` gate on those ports (mprocs has no proc ordering, so they wait via
+# scripts/wait-for-dev-services.mjs) before booting; `web` starts immediately.
+# Quitting mprocs (press `q`) stops every proc — SIGINT lets docker-compose
+# tear the containers down cleanly.
+procs:
+  docker:
+    shell: docker-compose up postgres temporal-postgres temporal temporal-ui
+    stop: SIGINT
+  server:
+    shell: node scripts/wait-for-dev-services.mjs && pnpm --filter @codewright/server dev
+  worker:
+    shell: node scripts/wait-for-dev-services.mjs && pnpm --filter @codewright/worker dev
+  web:
+    shell: pnpm --filter @codewright/web dev
