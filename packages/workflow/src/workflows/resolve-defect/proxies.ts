@@ -11,7 +11,7 @@ import { SANDBOX_TASK_QUEUE } from '../../task-queues.js';
 // sandboxInfra — sandbox create / destroy / push / filter. Cold-build
 //                path includes base-image pull + repo clone + tier-2
 //                setup commands (`pnpm install` etc., capped at 20min
-//                via CODEWRIGHT_SETUP_COMMAND_TIMEOUT_MS), so 30 min total
+//                via SETUP_COMMAND_TIMEOUT_MS), so 30 min total
 //                gives ~10min headroom for the surrounding work.
 // sandboxAgent — agent-driven stages (analyze / reproduce / implement / critic).
 //                Long-form: 45 min cap + 60s heartbeatTimeout. The agent

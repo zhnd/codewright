@@ -11,7 +11,7 @@
  * Env:
  *   SWE_LIMIT             number of instances (default 20)
  *   SWE_PREDICTIONS       output path (default predictions.jsonl)
- *   CODEWRIGHT_EVAL_PROJECT_ID project to attribute tasks to (else first project)
+ *   EVAL_PROJECT_ID       project to attribute tasks to (else first project)
  *
  * Requires: worker + Temporal + Postgres running on the current branch.
  */
@@ -25,7 +25,7 @@ async function main(): Promise<void> {
   const limit = Number(process.env.SWE_LIMIT ?? process.argv[2] ?? 20);
   const outPath = process.env.SWE_PREDICTIONS ?? 'predictions.jsonl';
 
-  const explicitId = process.env.CODEWRIGHT_EVAL_PROJECT_ID;
+  const explicitId = process.env.EVAL_PROJECT_ID;
   const project = explicitId
     ? await prisma.project.findUnique({
         where: { id: explicitId },
@@ -37,7 +37,7 @@ async function main(): Promise<void> {
       });
   if (!project?.userId) {
     console.error(
-      'No eval project with a userId. Set CODEWRIGHT_EVAL_PROJECT_ID to a registered project.'
+      'No eval project with a userId. Set EVAL_PROJECT_ID to a registered project.'
     );
     process.exit(1);
   }

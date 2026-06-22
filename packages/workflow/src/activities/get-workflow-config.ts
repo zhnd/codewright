@@ -10,14 +10,13 @@
  */
 
 export interface WorkflowConfig {
-  /** CODEWRIGHT_AUTO_APPROVE_TRIVIAL=true bypasses HITL for trivial diffs. */
+  /** AUTO_APPROVE_TRIVIAL=true bypasses HITL for trivial diffs. */
   autoApproveTrivial: boolean;
 }
 
 export async function getWorkflowConfigActivity(): Promise<WorkflowConfig> {
   return {
     autoApproveTrivial:
-      (process.env.CODEWRIGHT_AUTO_APPROVE_TRIVIAL ?? '').toLowerCase() ===
-      'true',
+      (process.env.AUTO_APPROVE_TRIVIAL ?? '').toLowerCase() === 'true',
   };
 }

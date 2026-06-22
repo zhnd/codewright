@@ -8,7 +8,7 @@ import { log } from './logger.js';
 const SANDBOX_CONCURRENCY = parseIntEnv('SANDBOX_CONCURRENCY', 4);
 const MAIN_CONCURRENCY = parseIntEnv('WORKER_CONCURRENCY', 40);
 const PRUNE_INTERVAL_MS = parseIntEnv(
-  'CODEWRIGHT_IMAGE_PRUNE_INTERVAL_MS',
+  'IMAGE_PRUNE_INTERVAL_MS',
   24 * 60 * 60 * 1000
 );
 

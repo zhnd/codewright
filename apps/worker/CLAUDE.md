@@ -25,8 +25,8 @@ Scale horizontally by running additional worker processes; each carries its own 
 - `DATABASE_URL` — Prisma connection (required by activities)
 - `SANDBOX_CONCURRENCY` — max concurrent sandbox-heavy activities per process (default 4)
 - `WORKER_CONCURRENCY` — max concurrent activities/workflow tasks on the main queue (default 40)
-- `CODEWRIGHT_IMAGE_PRUNE_INTERVAL_MS` — how often to prune stale repo images (default 24h)
-- Plus all `CODEWRIGHT_*` vars consumed by `@codewright/sandbox` (see that package's CLAUDE.md)
+- `IMAGE_PRUNE_INTERVAL_MS` — how often to prune stale repo images (default 24h)
+- Plus all sandbox knobs consumed by `@codewright/sandbox` (see that package's CLAUDE.md)
 
 ## Dependencies
 
