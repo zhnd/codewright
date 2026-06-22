@@ -11,12 +11,12 @@
   },
   "dependencies": {
     "@apollo/client": "^4.1.9",
+    "@codewright/domain": "workspace:*",
     "@graphql-typed-document-node/core": "^3.2.0",
     "@hookform/resolvers": "^5.2.2",
     "@pierre/diffs": "^1.1.20",
     "@pierre/trees": "1.0.0-beta.3",
     "@tanstack/react-table": "^8.21.3",
-    "@codewright/domain": "workspace:*",
     "better-auth": "catalog:",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -38,6 +38,7 @@
     "@graphql-codegen/cli": "^7.0.0",
     "@graphql-codegen/client-preset": "^6.0.0",
     "@tailwindcss/postcss": "^4.2.4",
+    "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "tailwindcss": "^4.2.4"

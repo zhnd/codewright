@@ -37,40 +37,40 @@ Repos are materialized as Docker images so the Nth task on the same repo doesn't
 ```
 tier-1 (raw clone)     codewright/repo-raw:<repoHash>
   = sandbox-base + `git clone --filter=blob:none`
-  = rebuilt when ≥ CODEWRIGHT_REPO_RAW_MAX_AGE_MS (default 6h) via `git fetch + reset`
+  = rebuilt when ≥ REPO_RAW_MAX_AGE_MS (default 6h) via `git fetch + reset`
 
 tier-2 (post install)  codewright/repo:<repoHash>-<setupHash>
   = tier-1 + detected/declared toolchain + `<install cmd>`
-  = rebuilt when ≥ CODEWRIGHT_REPO_IMAGE_MAX_AGE_MS (default 24h) from tier-1
+  = rebuilt when ≥ REPO_IMAGE_MAX_AGE_MS (default 24h) from tier-1
   = setupHash derives from lockfile content + tool versions, so lockfile
     changes invalidate tier-2 only (tier-1 is still reused)
 ```
 
 Task flow: `ensureRepoImage` → `docker run <tag>` → `git fetch + reset` (delta) → optional `checkout -b` → task starts.
 
-Concurrent builds are serialized per cache key via an in-process `Map` plus a host fs lock at `CODEWRIGHT_LOCK_ROOT` (default `<os.tmpdir()>/codewright/locks`, e.g. `/tmp/codewright/locks` on Linux, `/var/folders/.../codewright/locks` on macOS). Orphan builder containers (label `codewright.role=builder`) are cleaned on worker startup; stale managed images are pruned on a daily timer.
+Concurrent builds are serialized per cache key via an in-process `Map` plus a host fs lock at `LOCK_ROOT` (default `<os.tmpdir()>/codewright/locks`, e.g. `/tmp/codewright/locks` on Linux, `/var/folders/.../codewright/locks` on macOS). Orphan builder containers (label `codewright.role=builder`) are cleaned on worker startup; stale managed images are pruned on a daily timer.
 
 ## Base image
 
 `codewright/sandbox-base:1` — debian-slim + `git / curl / ca-certificates / jq / ripgrep / build-essential / mise`. No language runtimes. Build with `pnpm sandbox:build-base`.
 
-All language toolchains come in through `mise` at tier-2 build time. A repo declares them via `mise.toml` / `.tool-versions` / `.nvmrc` / `.python-version`; otherwise `setup-detector` falls back to per-lockfile defaults (pnpm > bun > yarn > npm; uv > poetry > pip; cargo; go). Defaults pinned to current-1 LTS (Node 22, Python 3.12, Rust stable, Go latest, Bun latest); per-deployment overrides via `CODEWRIGHT_DEFAULT_*_VERSION`.
+All language toolchains come in through `mise` at tier-2 build time. A repo declares them via `mise.toml` / `.tool-versions` / `.nvmrc` / `.python-version`; otherwise `setup-detector` falls back to per-lockfile defaults (pnpm > bun > yarn > npm; uv > poetry > pip; cargo; go). Defaults pinned to current-1 LTS (Node 22, Python 3.12, Rust stable, Go latest, Bun latest); per-deployment overrides via `DEFAULT_*_VERSION`.
 
 ## Environment variables
 
 | Var | Default | Purpose |
 |---|---|---|
-| `CODEWRIGHT_SANDBOX_BASE_IMAGE` | `codewright/sandbox-base:1` | Base used by builder containers |
-| `CODEWRIGHT_REPO_RAW_MAX_AGE_MS` | 6h | Tier-1 refresh threshold |
-| `CODEWRIGHT_REPO_IMAGE_MAX_AGE_MS` | 24h | Tier-2 refresh threshold |
-| `CODEWRIGHT_REPO_IMAGE_PRUNE_AFTER_MS` | 7d | Managed-image eviction age |
-| `CODEWRIGHT_SETUP_COMMAND_TIMEOUT_MS` | 20min | Setup step timeout |
-| `CODEWRIGHT_LOCK_ROOT` | `<os.tmpdir()>/codewright/locks` | Host fs lock directory |
-| `CODEWRIGHT_DEFAULT_NODE_VERSION` | `22` | Node default when repo doesn't declare |
-| `CODEWRIGHT_DEFAULT_PYTHON_VERSION` | `3.12` | Python default |
-| `CODEWRIGHT_DEFAULT_RUST_VERSION` | `stable` | Rust default |
-| `CODEWRIGHT_DEFAULT_GO_VERSION` | `latest` | Go default |
-| `CODEWRIGHT_DEFAULT_BUN_VERSION` | `latest` | Bun default |
+| `SANDBOX_BASE_IMAGE` | `codewright/sandbox-base:1` | Base used by builder containers |
+| `REPO_RAW_MAX_AGE_MS` | 6h | Tier-1 refresh threshold |
+| `REPO_IMAGE_MAX_AGE_MS` | 24h | Tier-2 refresh threshold |
+| `REPO_IMAGE_PRUNE_AFTER_MS` | 7d | Managed-image eviction age |
+| `SETUP_COMMAND_TIMEOUT_MS` | 20min | Setup step timeout |
+| `LOCK_ROOT` | `<os.tmpdir()>/codewright/locks` | Host fs lock directory |
+| `DEFAULT_NODE_VERSION` | `22` | Node default when repo doesn't declare |
+| `DEFAULT_PYTHON_VERSION` | `3.12` | Python default |
+| `DEFAULT_RUST_VERSION` | `stable` | Rust default |
+| `DEFAULT_GO_VERSION` | `latest` | Go default |
+| `DEFAULT_BUN_VERSION` | `latest` | Bun default |
 
 ## Adding a new provider
 

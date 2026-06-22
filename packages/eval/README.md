@@ -31,7 +31,7 @@ gate) → extract the source-only patch from the CRITIC output → write
 ## Prerequisites
 
 - A Codewright **worker on this branch** + Temporal + Postgres running.
-- A registered project for task attribution (`CODEWRIGHT_EVAL_PROJECT_ID`, or
+- A registered project for task attribution (`EVAL_PROJECT_ID`, or
   the first project is used — SWE-bench repos are public so no creds).
 - `uv` installed (`brew install uv`).
 
@@ -41,7 +41,7 @@ gate) → extract the source-only patch from the CRITIC output → write
 |---|---|---|
 | `SWE_LIMIT` | 20 | number of instances |
 | `SWE_PREDICTIONS` | `predictions.jsonl` | output path |
-| `CODEWRIGHT_EVAL_PROJECT_ID` | first project | project to attribute tasks to |
+| `EVAL_PROJECT_ID` | first project | project to attribute tasks to |
 | `SWEBENCH_API_KEY` | — | sb-cli cloud key (else scoring is skipped with guidance) |
 
 ## Notes

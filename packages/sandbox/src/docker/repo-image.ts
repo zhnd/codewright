@@ -22,8 +22,7 @@ import { DockerSandbox } from './sandbox.js';
 import { detectSetup, type SetupPlan } from './setup-detector.js';
 
 const LOCK_ROOT =
-  process.env.CODEWRIGHT_LOCK_ROOT ??
-  path.join(os.tmpdir(), 'codewright', 'locks');
+  process.env.LOCK_ROOT ?? path.join(os.tmpdir(), 'codewright', 'locks');
 const RAW_REPO = 'codewright/repo-raw';
 const SETUP_REPO = 'codewright/repo';
 const TIER_RAW = 'raw';

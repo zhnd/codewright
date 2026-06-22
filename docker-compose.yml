@@ -1,6 +1,5 @@
 services:
   postgres:
-    container_name: codewright-postgres
     image: postgres:17
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-codewright}
@@ -19,7 +18,6 @@ services:
     shm_size: 128mb
 
   temporal-postgres:
-    container_name: codewright-temporal-postgres
     image: postgres:17
     environment:
       POSTGRES_USER: temporal
@@ -38,7 +36,6 @@ services:
     shm_size: 128mb
 
   temporal:
-    container_name: codewright-temporal
     image: temporalio/auto-setup:latest
     depends_on:
       temporal-postgres:
@@ -54,7 +51,6 @@ services:
     restart: always
 
   temporal-ui:
-    container_name: codewright-temporal-ui
     image: temporalio/ui:latest
     depends_on:
       - temporal
