@@ -12,6 +12,23 @@ import type {
 
 const DEFAULT_API_BASE = 'https://api.cnb.cool';
 
+/**
+ * node-cnb (>=1.30) types each endpoint as `Result | DieWebError`, returning
+ * the error object inline rather than throwing. This guard narrows it out so
+ * callers can work with the success payload.
+ */
+type CnbWebError = { errcode: number; errmsg: string };
+
+function isCnbError(res: unknown): res is CnbWebError {
+  return (
+    typeof res === 'object' &&
+    res !== null &&
+    !Array.isArray(res) &&
+    'errcode' in res &&
+    'errmsg' in res
+  );
+}
+
 export interface CnbClientOptions {
   token: string;
   repo: ParsedRepo;
@@ -83,7 +100,7 @@ export class CnbClient implements GitHostClient {
     let defaultBranch: string | undefined;
     try {
       const head = await this.client.repo.git.head.get({ repo: this.repoPath });
-      defaultBranch = head?.name;
+      if (head && !isCnbError(head)) defaultBranch = head.name;
     } catch {
       // Some repos / token scopes may reject the head probe; fall back
       // to "first branch wins" ordering rather than failing the picker.
@@ -98,6 +115,7 @@ export class CnbClient implements GitHostClient {
         page,
         page_size: PAGE_SIZE,
       });
+      if (isCnbError(batch)) break;
       if (!batch || batch.length === 0) break;
       for (const b of batch) all.push(b.name);
       if (batch.length < PAGE_SIZE) break;
@@ -120,6 +138,9 @@ export class CnbClient implements GitHostClient {
       repo: this.repoPath,
       number: String(args.pullNumber),
     });
+    if (isCnbError(files)) {
+      throw new Error(`cnb pull files list failed: ${files.errmsg}`);
+    }
 
     // ApiPullReviewCommentCreationForm uses start_line/end_line in the new
     // file with start_side/end_side, not GitHub's diff-relative position.

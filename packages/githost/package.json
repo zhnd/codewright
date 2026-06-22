@@ -17,9 +17,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@octokit/rest": "^22.0.1",
     "@codewright/domain": "workspace:*",
     "@codewright/shared": "workspace:*",
-    "node-cnb": "^1.29.0"
+    "@octokit/rest": "^22.0.1",
+    "node-cnb": "^1.30.0"
   }
 }

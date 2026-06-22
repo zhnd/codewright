@@ -9,13 +9,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@temporalio/worker": "^1.17.0",
     "@codewright/agent-runtime": "workspace:*",
     "@codewright/domain": "workspace:*",
-    "@codewright/solver": "workspace:*",
     "@codewright/sandbox": "workspace:*",
     "@codewright/shared": "workspace:*",
-    "@codewright/workflow": "workspace:*"
+    "@codewright/solver": "workspace:*",
+    "@codewright/workflow": "workspace:*",
+    "@temporalio/worker": "^1.18.1"
   },
   "devDependencies": {
     "tsx": "catalog:"
