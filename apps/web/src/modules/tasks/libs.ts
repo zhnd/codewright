@@ -1,16 +1,7 @@
 import type { MiniStageStatus } from '@/components/common/mini-track';
+import { dbStageToWebStage } from '@/utils/stages';
 import { TASK_FILTERS } from './constants';
 import type { ApiListTask, TaskListRow, TaskListStatusFilter } from './types';
-
-// Server stage keys (uppercase, canonical order) → MiniTrack segment keys.
-const STAGE_KEY_TO_MINI: Record<string, string> = {
-  ANALYSIS: 'analyze',
-  REPRODUCE: 'reproduce',
-  IMPLEMENT: 'implement',
-  FILTER: 'filter',
-  CRITIC: 'critic',
-  PR: 'pr',
-};
 
 // Server stage status → MiniTrack segment status.
 const STAGE_STATUS_TO_MINI: Record<string, MiniStageStatus> = {
@@ -29,7 +20,7 @@ function buildStageRecord(
 ): Record<string, MiniStageStatus> {
   const out: Record<string, MiniStageStatus> = {};
   for (const s of stages ?? []) {
-    const key = STAGE_KEY_TO_MINI[s.key];
+    const key = dbStageToWebStage(s.key);
     if (key) out[key] = STAGE_STATUS_TO_MINI[s.status] ?? 'pending';
   }
   return out;

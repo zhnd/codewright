@@ -1,4 +1,5 @@
 import type { StageTimingView } from '@/modules/tasks/types';
+import { dbStageToWebStage } from '@/utils/stages';
 import {
   GANTT_LEFT_GUTTER,
   GANTT_VIEWBOX_WIDTH,
@@ -123,22 +124,7 @@ export function deriveSegments(
 }
 
 export function mapStageKey(raw: string): StageKey | null {
-  switch (raw.toUpperCase()) {
-    case 'ANALYSIS':
-      return 'analyze';
-    case 'REPRODUCE':
-      return 'reproduce';
-    case 'IMPLEMENT':
-      return 'implement';
-    case 'FILTER':
-      return 'filter';
-    case 'CRITIC':
-      return 'critic';
-    case 'PR':
-      return 'pr';
-    default:
-      return null;
-  }
+  return dbStageToWebStage(raw);
 }
 
 export function mapAttemptStatus(raw: string): TimelineSegment['status'] {

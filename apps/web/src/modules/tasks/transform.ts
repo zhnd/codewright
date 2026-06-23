@@ -1,5 +1,6 @@
 import type { EventLevel, StageStatus, TaskStage } from '@codewright/domain';
 import { formatCostUsd, formatDuration } from '@/utils/format';
+import { dbStageToWebStage } from '@/utils/stages';
 import type {
   CostBreakdown,
   DiffFile,
@@ -410,16 +411,6 @@ function computeAgentTotals(events: ApiEvent[]): AgentTotals {
   return { totalCostUsd, totalInputTokens, totalOutputTokens, model };
 }
 
-// Server stage keys → web stage keys, for folding per-stage agent cost.
-const SERVER_TO_WEB_STAGE: Record<string, string> = {
-  ANALYSIS: 'analyze',
-  REPRODUCE: 'reproduce',
-  IMPLEMENT: 'implement',
-  FILTER: 'filter',
-  CRITIC: 'critic',
-  PR: 'pr',
-};
-
 /**
  * Per-stage agent cost rollup (model + tokens + cost), summed across each
  * stage's attempts. Keyed by web stage key. Stages without agents (FILTER,
@@ -430,7 +421,7 @@ function computeStageCosts(events: ApiEvent[]): Record<string, StageCostView> {
   const out: Record<string, StageCostView> = {};
   for (const e of events) {
     if (e.kind !== 'STAGE') continue;
-    const key = SERVER_TO_WEB_STAGE[e.stageKey.toUpperCase()];
+    const key = dbStageToWebStage(e.stageKey);
     if (!key) continue;
     const cur = out[key] ?? {
       model: null,
