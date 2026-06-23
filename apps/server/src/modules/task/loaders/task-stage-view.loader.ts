@@ -183,6 +183,20 @@ export async function loadCurrentStageKey(
   return taskIds.map((id) => pickFocalStage(byTask.get(id) ?? []));
 }
 
+/** Sum of STAGE-event agent cost per task (0 when none), batched by taskId. */
+export async function loadTotalCost(
+  taskIds: readonly string[],
+  prisma: PrismaClient
+): Promise<number[]> {
+  const grouped = await prisma.taskEvent.groupBy({
+    by: ['taskId'],
+    where: { taskId: { in: [...taskIds] }, kind: 'STAGE' },
+    _sum: { costUsd: true },
+  });
+  const byTask = new Map(grouped.map((g) => [g.taskId, g._sum.costUsd ?? 0]));
+  return taskIds.map((id) => byTask.get(id) ?? 0);
+}
+
 /** Awaiting gate descriptor (or null), batched by taskId. */
 export async function loadAwaiting(
   taskIds: readonly string[],

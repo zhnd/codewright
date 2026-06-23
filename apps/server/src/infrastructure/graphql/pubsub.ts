@@ -19,6 +19,10 @@ type Subscriber = () => void;
 class TaskPubSub {
   private ready: Promise<void> | null = null;
   private readonly subscribers = new Map<string, Set<Subscriber>>();
+  // userId → subscribers, for the tasks-list subscription (any of a
+  // user's tasks changing triggers a list refresh). Populated from the
+  // `userId` field the NOTIFY payload now carries.
+  private readonly userSubscribers = new Map<string, Set<Subscriber>>();
 
   private async ensureReady(): Promise<void> {
     if (this.ready) return this.ready;
@@ -31,7 +35,7 @@ class TaskPubSub {
       await client.connect();
       client.on('notification', (msg) => {
         if (msg.channel !== CHANNEL || !msg.payload) return;
-        let parsed: { taskId?: string; kind?: string } = {};
+        let parsed: { taskId?: string; kind?: string; userId?: string } = {};
         try {
           parsed = JSON.parse(msg.payload);
         } catch {
@@ -48,8 +52,12 @@ class TaskPubSub {
           },
           'pubsub: notification received'
         );
-        if (!set) return;
-        for (const fn of set) fn();
+        if (set) for (const fn of set) fn();
+        // List-plane fan-out: notify subscribers watching this user's tasks.
+        if (parsed.userId) {
+          const userSet = this.userSubscribers.get(parsed.userId);
+          if (userSet) for (const fn of userSet) fn();
+        }
       });
       client.on('error', (err) => {
         log.error({ err }, 'pubsub: client error');
@@ -102,6 +110,67 @@ class TaskPubSub {
       closed = true;
       set?.delete(fire);
       if (set?.size === 0) this.subscribers.delete(taskId);
+      if (pendingTimer) clearTimeout(pendingTimer);
+      resolveNext?.();
+    };
+    signal?.addEventListener('abort', cleanup);
+
+    try {
+      while (!closed && !(signal?.aborted ?? false)) {
+        if (!pending) {
+          await new Promise<void>((r) => {
+            resolveNext = r;
+          });
+        }
+        if (closed) break;
+        pending = false;
+        yield;
+      }
+    } finally {
+      cleanup();
+    }
+  }
+
+  /**
+   * Like {@link iterate} but keyed by userId — yields whenever ANY of the
+   * user's tasks changes. Backs the tasks-list subscription so the list
+   * refreshes on status/stage changes instead of polling. Same
+   * debounce + pending-bridge semantics.
+   */
+  async *iterateUser(
+    userId: string,
+    signal?: AbortSignal
+  ): AsyncIterable<void> {
+    await this.ensureReady();
+
+    let resolveNext: (() => void) | null = null;
+    let pendingTimer: ReturnType<typeof setTimeout> | null = null;
+    let pending = false;
+    let closed = false;
+
+    const fire: Subscriber = () => {
+      if (closed) return;
+      if (pendingTimer) return;
+      pendingTimer = setTimeout(() => {
+        pendingTimer = null;
+        pending = true;
+        const r = resolveNext;
+        resolveNext = null;
+        r?.();
+      }, DEBOUNCE_MS);
+    };
+
+    let set = this.userSubscribers.get(userId);
+    if (!set) {
+      set = new Set();
+      this.userSubscribers.set(userId, set);
+    }
+    set.add(fire);
+
+    const cleanup = () => {
+      closed = true;
+      set?.delete(fire);
+      if (set?.size === 0) this.userSubscribers.delete(userId);
       if (pendingTimer) clearTimeout(pendingTimer);
       resolveNext?.();
     };

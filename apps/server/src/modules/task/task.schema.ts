@@ -6,6 +6,7 @@ import {
   loadAwaiting,
   loadCurrentStageKey,
   loadStageView,
+  loadTotalCost,
   type ReviewShape,
   type StageViewShape,
 } from './loaders/task-stage-view.loader.js';
@@ -93,12 +94,12 @@ builder.prismaObject('TaskEvent', {
     startedAt: t.expose('startedAt', { type: 'DateTime' }),
     endedAt: t.expose('endedAt', { type: 'DateTime', nullable: true }),
     durationMs: t.exposeInt('durationMs', { nullable: true }),
-    // Phase 1 agent observability: per-event agent invocation list.
-    // Empty for REVIEW-kind events and for STAGE events whose stage has
-    // no agent (e.g. FILTER, PR).
-    agentInvocations: t.relation('agentInvocations', {
-      query: { orderBy: { startedAt: 'asc' } },
-    }),
+    // Agent cost rollup for this stage attempt (sum across the stage's
+    // agent runs). The task hero sums these across stages.
+    costUsd: t.exposeFloat('costUsd', { nullable: true }),
+    inputTokens: t.exposeInt('inputTokens', { nullable: true }),
+    outputTokens: t.exposeInt('outputTokens', { nullable: true }),
+    model: t.exposeString('model', { nullable: true }),
   }),
 });
 
@@ -125,6 +126,25 @@ builder.prismaObject('Task', {
     updatedAt: t.expose('updatedAt', { type: 'DateTime' }),
     startedAt: t.expose('startedAt', { type: 'DateTime', nullable: true }),
     completedAt: t.expose('completedAt', { type: 'DateTime', nullable: true }),
+
+    // Wall-clock for the list/hero: completed→span; running→elapsed; else null.
+    durationMs: t.int({
+      nullable: true,
+      resolve: (task) => {
+        if (!task.startedAt) return null;
+        const end = task.completedAt ?? new Date();
+        return Math.max(0, end.getTime() - task.startedAt.getTime());
+      },
+    }),
+
+    // Agent cost rollup across the task's STAGE events (task hero / list).
+    totalCostUsd: t.loadable({
+      type: 'Float',
+      nullable: true,
+      load: (taskIds: readonly string[], ctx) =>
+        loadTotalCost(taskIds, ctx.prisma),
+      resolve: (parent) => parent.id,
+    }),
 
     stages: t.loadableList({
       type: TaskStageView,
@@ -155,9 +175,6 @@ builder.prismaObject('Task', {
 
     events: t.relation('events', {
       query: { orderBy: { startedAt: 'asc' } },
-    }),
-    executions: t.relation('executions', {
-      query: { orderBy: { startedAt: 'desc' } },
     }),
   }),
 });
