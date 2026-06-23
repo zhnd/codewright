@@ -1,8 +1,8 @@
 import { RotateCcw } from 'lucide-react';
 import { createContext, useContext } from 'react';
 import type { StageCostView } from '@/modules/tasks/types';
+import { formatCostUsd, formatTokens } from '@/utils/format';
 import { STAGE_LABELS } from '../../constants';
-import { formatTokens } from '../../libs';
 import type { StageKey } from '../../types';
 import { FailurePanel } from '../failure-panel';
 
@@ -40,7 +40,7 @@ function StageStats() {
       ),
     });
   if (costUsd > 0)
-    parts.push({ key: 'c', node: <span>${costUsd.toFixed(2)}</span> });
+    parts.push({ key: 'c', node: <span>{formatCostUsd(costUsd)}</span> });
   if (duration) parts.push({ key: 'd', node: <span>{duration}</span> });
   if (parts.length === 0) return null;
 

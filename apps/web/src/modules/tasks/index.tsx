@@ -12,13 +12,9 @@ import { AppShell } from '@/components/layout/app-shell';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/utils/cn';
+import { formatCostUsd, formatDuration } from '@/utils/format';
 import { TASK_FILTERS } from './constants';
-import {
-  effectiveStatus,
-  formatCost,
-  formatDuration,
-  humanizeTaskType,
-} from './libs';
+import { effectiveStatus, humanizeTaskType } from './libs';
 import { useService } from './use-service';
 
 export function Tasks() {
@@ -204,7 +200,7 @@ export function Tasks() {
                       {formatDuration(t.durationMs)}
                     </td>
                     <td className="hidden border-b border-border-faint px-4 py-3 text-right align-middle font-mono text-[12px] text-foreground md:table-cell">
-                      {formatCost(t.totalCostUsd)}
+                      {formatCostUsd(t.totalCostUsd)}
                     </td>
                     <td className="border-b border-border-faint px-4 py-3 align-middle">
                       <div className="flex justify-end opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">

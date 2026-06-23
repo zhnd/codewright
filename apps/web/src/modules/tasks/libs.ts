@@ -107,19 +107,6 @@ export function filterTasks(
   });
 }
 
-export function formatDuration(ms: number | null): string {
-  if (!ms) return '—';
-  if (ms < 1000) return `${ms}ms`;
-  const s = Math.floor(ms / 1000);
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  return `${m}m ${s % 60}s`;
-}
-
-export function formatCost(usd: number | null): string {
-  return usd != null ? `$${usd.toFixed(2)}` : '—';
-}
-
 export function humanizeTaskType(type: string): string {
   return type.toLowerCase().replace(/_/g, ' ');
 }

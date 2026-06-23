@@ -40,29 +40,6 @@ export function pickTickInterval(wallSeconds: number): number {
 // ── Time formatters ─────────────────────────────────────────
 
 /**
- * Human-readable duration. Snaps to the largest reasonable unit so
- * tasks that run for hours don't show "300m" and short tool calls
- * don't show "523.7ms".
- *   < 1 s     →  "523ms"
- *   < 60 s    →  "42s"
- *   < 1 hour  →  "5m 23s"  (drops trailing seconds when zero: "5m")
- *   ≥ 1 hour  →  "1h 12m"  (drops trailing minutes when zero: "1h")
- */
-export function formatDuration(ms: number): string {
-  const total = Math.round(ms);
-  if (total < 1000) return `${total}ms`;
-  const totalSeconds = Math.round(total / 1000);
-  if (totalSeconds < 60) return `${totalSeconds}s`;
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  if (hours > 0) {
-    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-  }
-  return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
-}
-
-/**
  * Tick label format. Compact units that drop trailing zero parts so
  * the labels stay short and packing density goes up:
  *   exact hour      →  "5h"     (was "5h00m")
@@ -99,20 +76,6 @@ export function formatStartClock(iso: string): string {
     second: '2-digit',
     hour12: false,
   });
-}
-
-/** Smart-precision USD — sub-cent amounts keep 4 decimals. */
-export function formatCostUsd(usd: number): string {
-  if (usd <= 0) return '$0';
-  if (usd < 0.01) return `$${usd.toFixed(4)}`;
-  if (usd < 1) return `$${usd.toFixed(3)}`;
-  return `$${usd.toFixed(2)}`;
-}
-
-/** Compact token count — "1.2k", "987". */
-export function formatTokens(n: number): string {
-  if (n < 1000) return `${n}`;
-  return `${(n / 1000).toFixed(n < 10000 ? 1 : 0)}k`;
 }
 
 // ── Segment derivation + aggregation ────────────────────────

@@ -1,6 +1,7 @@
 'use client';
 
 import { StageTag } from '@/components/common/stage-tag';
+import { formatDuration } from '@/utils/format';
 import { SegmentTooltip } from './components/segment-tooltip';
 import {
   GANTT_LEFT_GUTTER,
@@ -11,12 +12,7 @@ import {
   STAGE_LIST,
   STATUS_COLOR,
 } from './constants';
-import {
-  formatClockFromSeconds,
-  formatDuration,
-  pickTickInterval,
-  xAt,
-} from './libs';
+import { formatClockFromSeconds, pickTickInterval, xAt } from './libs';
 import type {
   BreakdownRow,
   StageKey,

@@ -1,4 +1,5 @@
 import type { EventLevel, StageStatus, TaskStage } from '@codewright/domain';
+import { formatCostUsd, formatDuration } from '@/utils/format';
 import type {
   CostBreakdown,
   DiffFile,
@@ -461,33 +462,10 @@ function formatTaskDuration(
   const start = new Date(startedAt).getTime();
   const end = completedAt ? new Date(completedAt).getTime() : Date.now();
   const ms = Math.max(0, end - start);
-  const formatted = formatActivityDuration(ms);
+  const formatted = formatDuration(ms);
   // Trailing dot suffix communicates "still ticking" without forcing
   // continuous re-render.
   return status === 'RUNNING' ? `${formatted}+` : formatted;
-}
-
-/** Smart-precision USD formatter. Sub-cent amounts keep 4 decimals so
- *  small agent runs don't all round to "$0.00". */
-function formatCostUsd(usd: number): string {
-  if (usd <= 0) return '$0';
-  if (usd < 0.01) return `$${usd.toFixed(4)}`;
-  if (usd < 1) return `$${usd.toFixed(3)}`;
-  return `$${usd.toFixed(2)}`;
-}
-
-function formatActivityDuration(ms: number): string {
-  const total = Math.round(ms);
-  if (total < 1000) return `${total}ms`;
-  const totalSeconds = Math.round(total / 1000);
-  if (totalSeconds < 60) return `${totalSeconds}s`;
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  if (hours > 0) {
-    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-  }
-  return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
 }
 
 // ── Sub-mappers ──────────────────────────────────────────────
