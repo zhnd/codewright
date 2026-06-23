@@ -67,7 +67,6 @@ export function HitlBody({
       <div>
         <StageHeader
           title="HITL-final"
-          stage="hitl"
           chips={[
             <Chip key="a" dot="var(--ok)" strong>
               Auto-approved
@@ -98,7 +97,6 @@ export function HitlBody({
     <div>
       <StageHeader
         title="Human review"
-        stage="hitl"
         chips={
           [
             isAwaiting ? (

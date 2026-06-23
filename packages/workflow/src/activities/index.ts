@@ -23,7 +23,6 @@ export {
 } from './get-workflow-config.js';
 export { implementResolutionActivity } from './implement-resolution.js';
 export { loadRepoNavigationActivity } from './load-repo-navigation.js';
-export { persistAgentInvocationActivity } from './persist-agent-trace.js';
 export { pushBranchActivity } from './push-branch.js';
 export { renameBranchActivity } from './rename-branch.js';
 export { reproduceDefectActivity } from './reproduce-defect.js';

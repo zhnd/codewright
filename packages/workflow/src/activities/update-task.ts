@@ -1,5 +1,6 @@
 import { Prisma, prisma } from '@codewright/database';
 import {
+  generateSpanId,
   isStageEventTerminal,
   isTaskTerminal,
   type TaskEventStatus,
@@ -27,6 +28,15 @@ export interface UpdateTaskInput {
     status: TaskEventStatus;
     output?: unknown;
     error?: string;
+    /** Agent cost rollup for this stage (sum across the stage's agent
+     *  runs). Written to the TaskEvent cost columns; the task hero sums
+     *  these across stages. */
+    cost?: {
+      costUsd: number | null;
+      inputTokens: number | null;
+      outputTokens: number | null;
+      model: string | null;
+    };
   };
 }
 
@@ -84,6 +94,8 @@ export async function updateTaskActivity(
           stageKey: startStage.stageKey,
           attemptNumber,
           status: 'RUNNING',
+          // Stage span — root of this attempt's agent-run/tool subtree.
+          spanId: generateSpanId(),
           input:
             startStage.input !== undefined
               ? (startStage.input as Prisma.InputJsonValue)
@@ -104,6 +116,12 @@ export async function updateTaskActivity(
       }
       if (updateStage.error !== undefined) {
         data.error = updateStage.error;
+      }
+      if (updateStage.cost) {
+        data.costUsd = updateStage.cost.costUsd;
+        data.inputTokens = updateStage.cost.inputTokens;
+        data.outputTokens = updateStage.cost.outputTokens;
+        data.model = updateStage.cost.model;
       }
       if (isStageEventTerminal(updateStage.status)) {
         const existing = await tx.taskEvent.findUniqueOrThrow({

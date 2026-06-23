@@ -13,7 +13,12 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/utils/cn';
 import { TASK_FILTERS } from './constants';
-import { formatCost, formatDuration, humanizeTaskType } from './libs';
+import {
+  effectiveStatus,
+  formatCost,
+  formatDuration,
+  humanizeTaskType,
+} from './libs';
 import { useService } from './use-service';
 
 export function Tasks() {
@@ -150,11 +155,11 @@ export function Tasks() {
                           className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm font-mono text-[11px] font-medium text-background"
                           style={{
                             background:
-                              t.status === 'FAILED'
+                              effectiveStatus(t) === 'FAILED'
                                 ? 'var(--danger)'
-                                : t.status === 'AWAITING_REVIEW'
+                                : effectiveStatus(t) === 'AWAITING_REVIEW'
                                   ? 'var(--accent)'
-                                  : t.status === 'COMPLETED'
+                                  : effectiveStatus(t) === 'COMPLETED'
                                     ? 'var(--ok)'
                                     : 'oklch(0.32 0.012 264)',
                           }}
@@ -184,7 +189,7 @@ export function Tasks() {
                       {t.project?.name ?? '—'}
                     </td>
                     <td className="border-b border-border-faint px-4 py-3 align-middle">
-                      <StatusChip status={t.status} />
+                      <StatusChip status={effectiveStatus(t)} />
                     </td>
                     <td className="hidden border-b border-border-faint px-4 py-3 align-middle md:table-cell">
                       <MiniTrack

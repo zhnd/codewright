@@ -162,6 +162,23 @@ export async function runAgent<T>(
       }
     }
   } catch (err) {
+    // The agent may have already submitted a valid structured result via
+    // submit_result before the SDK threw — e.g. max_turns / budget / abort
+    // fires on the very turn that carried the final submission. The work is
+    // done, so honor the captured result instead of discarding it as a
+    // failure (which would fail the stage and stop the workflow from
+    // proceeding). The terminal error was still recorded on the transcript +
+    // cost rollup by the observer's result handler.
+    if (submit?.getResult() != null) {
+      log.warn(
+        { agent: input.agentName, model, err },
+        `${input.agentName} SDK iteration ended with an error AFTER a successful submit_result — using the captured result`
+      );
+      return {
+        result: submit.getResult() as T,
+        observation: observer.collect(),
+      };
+    }
     const message = err instanceof Error ? err.message : String(err);
     observer.recordError(message);
     log.error(

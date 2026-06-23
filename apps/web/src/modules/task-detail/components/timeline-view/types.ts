@@ -22,6 +22,15 @@ export interface TimelineSegment {
   /** Seconds from the earliest stage start. */
   t1: number;
   label?: string;
+  /** Absolute wall-clock start (ISO), for the tooltip. */
+  startedAt: string;
+  /** Whether the segment is still open (no endedAt) — drives live ticking. */
+  open: boolean;
+  costUsd: number | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  model: string | null;
+  error: string | null;
 }
 
 export interface BreakdownRow {
@@ -32,14 +41,15 @@ export interface BreakdownRow {
   percent: number;
   /** Number of attempts the stage ran. */
   attempts: number;
+  /** Status of the stage's latest attempt — drives the bar color. */
+  status: TimelineSegment['status'];
 }
 
-export interface CurrentStageInfo {
-  label: string;
-  subtitle: string;
-  tone: string;
-}
-
-export interface VisualViewProps {
+export interface TimelineViewProps {
   stageTimings: StageTimingView[];
+  /**
+   * Jump to a stage in the Overview tab when its Gantt segment is clicked.
+   * The parent wires this to `setSelectedStage` + `setTab('overview')`.
+   */
+  onSelectStage?: (stage: StageKey) => void;
 }

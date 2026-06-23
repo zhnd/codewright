@@ -1,92 +1,117 @@
 import {
+  AGENT_EVENT_KIND,
   AGENT_INVOCATION_STATUS,
   type AgentCost,
+  type AgentEventKind,
   type AgentInvocationStatusValue,
-  type AgentInvocationTrace,
+  type AgentLogEvent,
+  type AgentMessageSink,
   type AgentObservation,
-  type AgentTurnTrace,
+  computeCostUsd,
   generateSpanId,
+  type ModelPricing,
   type ObservedEvent,
-  type ToolCallTrace,
+  TOOL_OUTPUT_CAP_BYTES,
+  TURN_TEXT_CAP_BYTES,
+  truncateToBytes,
 } from '@codewright/domain';
+import { log } from '../logger.js';
 
 export interface AgentObserver {
   onMessage(message: unknown): void;
   /**
    * Record an out-of-band failure (e.g., SDK iterator threw before a
-   * terminal `result` message was produced). Sets `errorText` on the
-   * trace and flips status to ERROR if not already terminal. No-op if
-   * the run has already completed.
+   * terminal `result` message was produced). Emits an error event and
+   * stamps cost/status. No-op if the run already completed.
    */
   recordError(message: string): void;
-  /** Legacy view: stage-level events + cost summary, consumed by the
-   *  TaskEvent path. Untouched for back-compat. */
+  /** Stage-level events (for logs) + cost rollup (for the stage's
+   *  TaskEvent cost columns). */
   collect(): AgentObservation;
-  /** Trace view: per-turn + per-tool metadata for the
-   *  AgentInvocation/AgentTurn/ToolCall persistence path. Phase 1 omits
-   *  textContent + tool input/output (deferred to the raw-message phase). */
-  collectTrace(): AgentInvocationTrace;
 }
 
 /**
- * Build an observer that consumes the Agent SDK message stream and
- * produces two views of the same run:
+ * Build an observer that consumes the Agent SDK message stream and:
  *
- * 1. `collect()` — legacy `ObservedEvent[]` + `AgentCost` for stage-level
- *    summaries; preserved verbatim so existing logging/TaskEvent paths
- *    don't change.
+ * 1. Translates each native SDK message into provider-neutral
+ *    `AgentLogEvent`s (message / reasoning / tool_call / tool_result /
+ *    usage / error) and appends them to the optional `sink`, so the web
+ *    can follow + replay the run live (this is the source-of-truth
+ *    agent message log).
+ * 2. Computes the run's `AgentCost` (tokens × {@link computeCostUsd}, with
+ *    the SDK figure only as fallback) for the stage cost rollup, exposed
+ *    via `collect()`.
  *
- * 2. `collectTrace()` — `AgentInvocationTrace` for the new per-invocation
- *    persistence layer. Phase 1 captures metadata only:
- *    - per turn: index, role, tokens, toolUseCount (no textContent)
- *    - per tool: name, toolUseId, startedAt, endedAt, durationMs, success
- *      (no input/output bodies — those will come from the raw-message
- *      stream in Phase 2)
- *
- *  Tool durations + success are populated when the corresponding
- *  `tool_result` block arrives in a later `user` message; correlation
- *  is by `tool_use_id`.
+ * The observer is the ONLY SDK-aware component; everything downstream
+ * consumes the neutral `AgentLogEvent` shape.
  */
+export interface ObserverOptions {
+  /** When provided, message-log events are streamed out during the run. */
+  sink?: AgentMessageSink;
+  /** This run's invocation span id — the parent of every emitted event
+   *  span. Its own parent (the stage span) is reconstructable via the
+   *  row's taskEventId → TaskEvent.spanId. */
+  spanId?: string;
+  /**
+   * Price table (USD / 1M tokens, keyed by model) used to compute run cost.
+   * Supplied by the workflow pricing service (DB-backed, remote-populated).
+   * When omitted, cost falls back to the in-code `MODEL_PRICING` map.
+   */
+  pricing?: Record<string, ModelPricing>;
+}
+
 export function createObserver(
   stage: string,
-  agentName: string
+  agentName: string,
+  opts?: ObserverOptions
 ): AgentObserver {
-  // ── Legacy state (collect) ─────────────────────────────────
+  const sink = opts?.sink;
+  const pricing = opts?.pricing;
+  const invocationSpanId = opts?.spanId ?? generateSpanId();
+  let logSeq = 0;
+  const emit = (e: {
+    kind: AgentEventKind;
+    role?: string | null;
+    textContent?: string | null;
+    textTruncatedAt?: number | null;
+    toolUseId?: string | null;
+    toolName?: string | null;
+    payload?: unknown;
+    payloadTruncatedAt?: number | null;
+  }): void => {
+    if (!sink) return;
+    const event: AgentLogEvent = {
+      seq: logSeq,
+      kind: e.kind,
+      role: e.role ?? null,
+      textContent: e.textContent ?? null,
+      textTruncatedAt: e.textTruncatedAt ?? null,
+      toolUseId: e.toolUseId ?? null,
+      toolName: e.toolName ?? null,
+      payload: e.payload ?? null,
+      payloadTruncatedAt: e.payloadTruncatedAt ?? null,
+      spanId: generateSpanId(),
+      parentSpanId: invocationSpanId,
+    };
+    logSeq += 1;
+    sink.append(event);
+  };
+
+  // Legacy stage-level events (logs) + cost rollup.
   const events: ObservedEvent[] = [];
   let cost: AgentCost | null = null;
-
-  // ── Trace state (collectTrace) ─────────────────────────────
-  // Phase 1: parentSpanId has no real upstream context yet (Phase 3 OTel
-  // work will inject the workflow / activity span). Generate a placeholder
-  // so the column has a stable value — they're unique per invocation but
-  // don't form a meaningful tree until Phase 3.
-  const invocationSpanId = generateSpanId();
-  const parentSpanId = generateSpanId();
   const startedAtMs = Date.now();
-  const startedAtIso = new Date(startedAtMs).toISOString();
-
-  let turnIndex = 0;
-  const turns: AgentTurnTrace[] = [];
-  const toolCalls: ToolCallTrace[] = [];
-  // tool_use_id → index in toolCalls, for tool_result correlation
-  const toolCallByUseId = new Map<string, number>();
 
   let invocationStatus: AgentInvocationStatusValue =
     AGENT_INVOCATION_STATUS.RUNNING;
   let modelUsed = 'unknown';
-  let endedAtIso: string | null = null;
-  let invocationDurationMs: number | null = null;
-  let totalCostUsd: number | null = null;
-  let invocationInputTokens: number | null = null;
-  let invocationOutputTokens: number | null = null;
-  let errorText: string | null = null;
 
   return {
     onMessage(message: unknown) {
       const msg = message as Record<string, unknown>;
       const nowIso = new Date().toISOString();
 
-      // ── assistant message → new turn + tool_use blocks ─────
+      // ── assistant message → text / reasoning / tool_use ────
       if (msg.type === 'assistant') {
         const beta = msg.message as {
           content?: Array<{
@@ -94,46 +119,53 @@ export function createObserver(
             id?: string;
             name?: string;
             input?: unknown;
+            text?: string;
+            thinking?: string;
           }>;
-          usage?: { input_tokens?: number; output_tokens?: number };
         };
         const content = beta?.content ?? [];
-        const toolUseBlocks = content.filter((b) => b.type === 'tool_use');
 
-        const thisTurnIndex = turnIndex;
-        turns.push({
-          turnIndex: thisTurnIndex,
-          role: 'assistant',
-          textContent: null, // Phase 1: not captured
-          textTruncatedAt: null,
-          toolUseCount: toolUseBlocks.length,
-          inputTokens: beta?.usage?.input_tokens ?? null,
-          outputTokens: beta?.usage?.output_tokens ?? null,
-          startedAt: nowIso,
-        });
-        turnIndex += 1;
-
-        for (const block of toolUseBlocks) {
-          if (!block.id || !block.name) continue;
-          toolCallByUseId.set(block.id, toolCalls.length);
-          toolCalls.push({
-            toolUseId: block.id,
-            name: block.name,
-            input: null, // Phase 1: not captured
-            output: null,
-            outputTruncatedAt: null,
-            success: null,
-            errorText: null,
-            startedAt: nowIso,
-            endedAt: null,
-            durationMs: null,
-            agentTurnIndex: thisTurnIndex,
-            spanId: generateSpanId(),
-            parentSpanId: invocationSpanId,
+        const reasoningText = content
+          .filter(
+            (b) => b.type === 'thinking' && typeof b.thinking === 'string'
+          )
+          .map((b) => b.thinking as string)
+          .join('\n');
+        if (reasoningText) {
+          const r = truncateToBytes(reasoningText, TURN_TEXT_CAP_BYTES);
+          emit({
+            kind: AGENT_EVENT_KIND.REASONING,
+            role: 'assistant',
+            textContent: r.text,
+            textTruncatedAt: r.truncatedAt,
           });
+        }
 
-          // Legacy event (kept for back-compat; details summary preserved
-          // so existing logs aren't impoverished)
+        const assistantText = content
+          .filter((b) => b.type === 'text' && typeof b.text === 'string')
+          .map((b) => b.text as string)
+          .join('\n');
+        if (assistantText) {
+          const t = truncateToBytes(assistantText, TURN_TEXT_CAP_BYTES);
+          emit({
+            kind: AGENT_EVENT_KIND.MESSAGE,
+            role: 'assistant',
+            textContent: t.text,
+            textTruncatedAt: t.truncatedAt,
+          });
+        }
+
+        for (const block of content.filter((b) => b.type === 'tool_use')) {
+          if (!block.id || !block.name) continue;
+          const captured = truncateInput(block.input);
+          emit({
+            kind: AGENT_EVENT_KIND.TOOL_CALL,
+            role: 'assistant',
+            toolUseId: block.id,
+            toolName: block.name,
+            payload: captured.value,
+            payloadTruncatedAt: captured.truncatedAt,
+          });
           events.push({
             stage,
             event: `Tool call: ${block.name}`,
@@ -146,72 +178,114 @@ export function createObserver(
         }
       }
 
-      // ── user message → tool_result blocks (correlate) ──────
+      // ── user message → tool_result blocks ──────────────────
       if (msg.type === 'user') {
         const userMsg = msg.message as {
           content?: Array<{
             type: string;
             tool_use_id?: string;
             is_error?: boolean;
+            content?: unknown;
           }>;
         };
-        const content = userMsg?.content ?? [];
-        for (const block of content) {
+        for (const block of userMsg?.content ?? []) {
           if (block.type !== 'tool_result' || !block.tool_use_id) continue;
-          const idx = toolCallByUseId.get(block.tool_use_id);
-          if (idx === undefined) continue;
-          const tc = toolCalls[idx];
-          tc.endedAt = nowIso;
-          tc.durationMs = Date.parse(nowIso) - Date.parse(tc.startedAt);
-          tc.success = block.is_error !== true;
+          const out = truncateToBytes(
+            stringifyToolResult(block.content),
+            TOOL_OUTPUT_CAP_BYTES
+          );
+          emit({
+            kind: AGENT_EVENT_KIND.TOOL_RESULT,
+            role: 'user',
+            toolUseId: block.tool_use_id,
+            textContent: out.text,
+            textTruncatedAt: out.truncatedAt,
+            payload: { isError: block.is_error === true },
+          });
         }
       }
 
       // ── terminal result → cost + status ────────────────────
+      // BOTH success and error results carry usage/modelUsage/cost
+      // (see SDKResultError); compute and record cost for either so the
+      // most-worth-observing runs — max turns, budget exceeded, exec
+      // errors — never vanish from the cost report.
       if (msg.type === 'result') {
-        endedAtIso = nowIso;
-        invocationDurationMs = Date.parse(nowIso) - startedAtMs;
+        const result = msg as {
+          subtype?: string;
+          total_cost_usd?: number;
+          duration_ms?: number;
+          usage?: { input_tokens?: number; output_tokens?: number };
+          modelUsage?: Record<string, unknown>;
+          terminal_reason?: string;
+          errors?: string[];
+          permission_denials?: Array<{ tool_name?: string }>;
+        };
+        const isSuccess = result.subtype === 'success';
 
-        if (msg.subtype === 'success') {
-          const result = msg as {
-            total_cost_usd?: number;
-            duration_ms?: number;
-            usage?: { input_tokens: number; output_tokens: number };
-            modelUsage?: Record<string, unknown>;
-          };
-          totalCostUsd = result.total_cost_usd ?? null;
-          if (result.duration_ms != null) {
-            invocationDurationMs = result.duration_ms;
-          }
-          invocationInputTokens = result.usage?.input_tokens ?? null;
-          invocationOutputTokens = result.usage?.output_tokens ?? null;
-          if (result.modelUsage) {
-            modelUsed = Object.keys(result.modelUsage)[0] ?? 'unknown';
-          }
-          invocationStatus = AGENT_INVOCATION_STATUS.SUCCESS;
-          cost = {
-            totalCostUsd: result.total_cost_usd ?? 0,
-            inputTokens: result.usage?.input_tokens ?? 0,
-            outputTokens: result.usage?.output_tokens ?? 0,
-            durationMs: result.duration_ms ?? 0,
+        if (result.modelUsage) {
+          modelUsed = Object.keys(result.modelUsage)[0] ?? 'unknown';
+        }
+        const inputTokens = result.usage?.input_tokens ?? null;
+        const outputTokens = result.usage?.output_tokens ?? null;
+        // Cost: tokens × our price table (the SDK figure assumes Anthropic
+        // pricing and is wrong for custom/gateway models); SDK as fallback.
+        const computed = computeCostUsd(
+          modelUsed,
+          inputTokens,
+          outputTokens,
+          pricing
+        );
+        if (computed == null && result.total_cost_usd == null) {
+          log.warn(
+            { agent: agentName, model: modelUsed },
+            'no price entry for model and no SDK cost — cost recorded as 0'
+          );
+        }
+        const totalCostUsd = computed ?? result.total_cost_usd ?? 0;
+        const durationMs = result.duration_ms ?? Date.now() - startedAtMs;
+
+        invocationStatus = isSuccess
+          ? AGENT_INVOCATION_STATUS.SUCCESS
+          : AGENT_INVOCATION_STATUS.ERROR;
+        cost = {
+          totalCostUsd,
+          inputTokens: inputTokens ?? 0,
+          outputTokens: outputTokens ?? 0,
+          durationMs,
+          model: modelUsed,
+        };
+        // Usage snapshot recorded for BOTH outcomes.
+        emit({
+          kind: AGENT_EVENT_KIND.USAGE,
+          payload: {
             model: modelUsed,
-          };
+            inputTokens,
+            outputTokens,
+            totalCostUsd,
+            durationMs,
+          },
+        });
+
+        if (isSuccess) {
           events.push({
             stage,
-            event: `Agent completed (${((result.duration_ms ?? 0) / 1000).toFixed(1)}s, $${(result.total_cost_usd ?? 0).toFixed(4)})`,
+            event: `Agent completed (${(durationMs / 1000).toFixed(1)}s, $${totalCostUsd.toFixed(4)})`,
             level: 'info',
             agent: agentName,
             timestamp: nowIso,
           });
-        } else if (msg.subtype === 'error') {
-          invocationStatus = AGENT_INVOCATION_STATUS.ERROR;
-          errorText = String(msg.error ?? '').slice(0, 500);
+        } else {
+          // Real terminal reason instead of the downstream generic
+          // "failed to capture structured result" message.
+          const reason = describeResultError(result);
+          emit({ kind: AGENT_EVENT_KIND.ERROR, textContent: reason });
           events.push({
             stage,
             event: 'Agent error',
             level: 'error',
             agent: agentName,
-            details: errorText,
+            details: reason,
             timestamp: nowIso,
           });
         }
@@ -219,51 +293,54 @@ export function createObserver(
     },
 
     recordError(message: string) {
-      if (invocationStatus !== AGENT_INVOCATION_STATUS.RUNNING) return;
+      // Skip only if an error was already recorded (e.g. an error
+      // `result` message). A late failure after a *successful* result
+      // (parse/validation throw) still gets an ERROR event for message-log
+      // completeness, and the already-computed cost is left intact.
+      if (invocationStatus === AGENT_INVOCATION_STATUS.ERROR) return;
       invocationStatus = AGENT_INVOCATION_STATUS.ERROR;
-      errorText = message.slice(0, 500);
-      const nowIso = new Date().toISOString();
-      endedAtIso = nowIso;
-      invocationDurationMs = Date.parse(nowIso) - startedAtMs;
+      const errorText = message.slice(0, 500);
+      emit({ kind: AGENT_EVENT_KIND.ERROR, textContent: errorText });
       events.push({
         stage,
         event: 'Agent error',
         level: 'error',
         agent: agentName,
         details: errorText,
-        timestamp: nowIso,
+        timestamp: new Date().toISOString(),
       });
     },
 
     collect(): AgentObservation {
       return { events, cost };
     },
-
-    collectTrace(): AgentInvocationTrace {
-      // Activity wrapper may call this on the error path before a
-      // terminal result message arrived; stamp endedAt/duration so the
-      // row reflects the actual wall time spent.
-      const finalEnded = endedAtIso ?? new Date().toISOString();
-      const finalDuration =
-        invocationDurationMs ?? Date.parse(finalEnded) - startedAtMs;
-      return {
-        agentName,
-        model: modelUsed,
-        status: invocationStatus,
-        errorText,
-        startedAt: startedAtIso,
-        endedAt: finalEnded,
-        durationMs: finalDuration,
-        totalCostUsd,
-        inputTokens: invocationInputTokens,
-        outputTokens: invocationOutputTokens,
-        turns,
-        toolCalls,
-        spanId: invocationSpanId,
-        parentSpanId,
-      };
-    },
   };
+}
+
+/**
+ * Build a human-readable reason from an SDK error `result` message: the
+ * terminal subtype (error_max_turns / error_max_budget_usd / …), the
+ * terminal_reason, the SDK's own error strings, and a summary of any
+ * permission denials (so "stuck on human approval" is visible).
+ */
+function describeResultError(result: {
+  subtype?: string;
+  terminal_reason?: string;
+  errors?: string[];
+  permission_denials?: Array<{ tool_name?: string }>;
+}): string {
+  const parts: string[] = [];
+  if (result.subtype) parts.push(result.subtype);
+  if (result.terminal_reason) {
+    parts.push(`terminal_reason=${result.terminal_reason}`);
+  }
+  if (result.errors?.length) parts.push(result.errors.join('; '));
+  const denials = result.permission_denials ?? [];
+  if (denials.length) {
+    const tools = [...new Set(denials.map((d) => d.tool_name).filter(Boolean))];
+    parts.push(`permission denied: ${tools.join(', ')} (${denials.length})`);
+  }
+  return parts.join(' · ').slice(0, 500) || 'Agent error';
 }
 
 function summarizeToolInput(
@@ -279,4 +356,42 @@ function summarizeToolInput(
     return inp.path;
   }
   return undefined;
+}
+
+/**
+ * Capture a tool's input as a structured payload, trimmed to the output
+ * cap (serialized size). Returns the value unchanged when small; otherwise
+ * the JSON-stringified+truncated form plus the original byte size.
+ */
+function truncateInput(input: unknown): {
+  value: unknown;
+  truncatedAt: number | null;
+} {
+  if (input == null) return { value: null, truncatedAt: null };
+  const json = JSON.stringify(input);
+  if (json === undefined) return { value: null, truncatedAt: null };
+  const { text, truncatedAt } = truncateToBytes(json, TOOL_OUTPUT_CAP_BYTES);
+  if (truncatedAt == null) return { value: input, truncatedAt: null };
+  return { value: text, truncatedAt };
+}
+
+/**
+ * Normalize a tool_result `content` field (string | block[] | object) into
+ * a plain string for storage/display.
+ */
+function stringifyToolResult(content: unknown): string {
+  if (content == null) return '';
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((b) => {
+        const block = b as { type?: string; text?: string };
+        if (block.type === 'text' && typeof block.text === 'string') {
+          return block.text;
+        }
+        return JSON.stringify(b);
+      })
+      .join('\n');
+  }
+  return JSON.stringify(content);
 }

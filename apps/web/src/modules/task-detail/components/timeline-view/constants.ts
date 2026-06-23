@@ -14,7 +14,7 @@ export const STAGE_LIST: StageMeta[] = [
 export const STAGE_KEYS = new Set<StageKey>(STAGE_LIST.map((s) => s.key));
 
 export const STATUS_COLOR: Record<TimelineSegment['status'], string> = {
-  done: 'var(--foreground)',
+  done: 'var(--ok)',
   rejected: 'var(--warn)',
   failed: 'var(--danger)',
   awaiting: 'var(--accent)',

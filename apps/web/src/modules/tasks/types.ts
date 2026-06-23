@@ -17,12 +17,35 @@ export type TaskListStatusFilter =
   | 'COMPLETED'
   | 'FAILED';
 
+// Raw GraphQL list row (matches TASK_LIST_FIELDS). Mapped to TaskListRow
+// by `toListRow` (stages array → MiniTrack record).
+export interface ApiListTask {
+  id: string;
+  type: string;
+  status: string;
+  error?: string | null;
+  currentStageKey?: string | null;
+  awaiting?: { stageKey: string; attemptNumber: number } | null;
+  project?: { id: string; name: string } | null;
+  stages?: { key: string; status: string }[] | null;
+  durationMs?: number | null;
+  totalCostUsd?: number | null;
+  createdAt: string;
+  updatedAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+}
+
 export interface TaskListRow {
   id: string;
   type: string;
   status: string;
+  currentStageKey?: string | null;
   currentStage: string | null;
   stages: Record<string, string> | null;
+  // Non-null when the task is paused on a human-review gate (derived
+  // server-side). Drives the AWAITING_REVIEW effective status.
+  awaiting?: { stageKey: string; attemptNumber: number } | null;
   totalCostUsd: number | null;
   durationMs: number | null;
   createdAt: string;
@@ -67,6 +90,12 @@ export interface TaskItem {
   error: string | null;
   /** Server-recorded terminal timestamp; null while still running. */
   completedAt: string | null;
+  /**
+   * Raw task input payload (defectDescription / baseBranch / future
+   * media …). Populated on the detail path; undefined for list rows.
+   * Rendered by the Input tab via `parseTaskInput`.
+   */
+  input?: unknown;
 }
 
 export interface TimelineEvent {
@@ -323,27 +352,26 @@ export interface TaskDetail {
     timestamp: string;
   }[];
 
-  // New observability surfaces (all optional — older tasks without
-  // Phase 2 telemetry simply have empty arrays / null).
-  currentExecution: ExecutionView | null;
-  executions: ExecutionView[];
   samples: SampleView[];
   reviews: ReviewView[];
 
-  // Phase 1 agent observability: per-stage-event agent invocation view
-  // for the TraceView tab. Each entry pairs one TaskEvent with the agent
-  // invocations recorded under it. Empty for tasks before this phase.
-  eventInvocations: EventInvocationsView[];
-
-  // Per-stage attempt timings used by VisualView (Gantt + breakdown).
+  // Per-stage attempt timings used by TimelineView (Gantt + breakdown).
   // Sourced from STAGE-kind TaskEvents directly, so it tracks any stage
-  // that ran — including those without agent invocations (FILTER, PR).
+  // that ran — including those without agent runs (FILTER, PR).
   stageTimings: StageTimingView[];
 
-  // Unified activity log for the Events tab. Merges three event sources
-  // sorted by timestamp: stage transitions, agent invocations, tool
-  // calls. Empty before any task progress.
-  activityLog: ActivityLogEntry[];
+  // Per-stage agent cost rollup (model + tokens + cost), summed across the
+  // stage's attempts. Keyed by web stage key (analyze/reproduce/…). Drives
+  // the per-stage stats strip shown in each stage body.
+  stageStats: Record<string, StageCostView>;
+}
+
+export interface StageCostView {
+  /** First non-empty model seen for the stage. */
+  model: string | null;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
 }
 
 export type ActivityCategory = 'stage' | 'agent' | 'tool';
@@ -391,4 +419,12 @@ export interface StageTimingView {
   startedAt: string;
   endedAt: string | null;
   durationMs: number | null;
+  // Agent cost rollup for this attempt (null for stages without agents,
+  // e.g. FILTER / PR). Surfaced in the timeline segment tooltip.
+  costUsd: number | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  model: string | null;
+  /** Failure text when the attempt errored; null otherwise. */
+  error: string | null;
 }

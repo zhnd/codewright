@@ -15,6 +15,7 @@ import {
   setHandler,
 } from '@temporalio/workflow';
 import { buildPrBody } from '../../utils/build-pr-body.js';
+import { sumStageCost } from '../../utils/stage-cost.js';
 import { runAnalyze } from './phases/analyze.js';
 import { runImplement } from './phases/implement.js';
 import { main, sandboxAgent, sandboxInfra } from './proxies.js';
@@ -240,14 +241,10 @@ async function runReproduce(
   }
 
   const reproduceOut = await sandboxAgent.reproduceDefectActivity(
+    eventId,
     ctx.sandboxState,
     analysis
   );
-  await main.persistAgentInvocationActivity({
-    taskEventId: eventId,
-    capturedTrace: reproduceOut.capturedTrace,
-    errorText: reproduceOut.errorText,
-  });
   if (reproduceOut.status !== 'SUCCESS' || !reproduceOut.result) {
     await main.updateTaskActivity({
       taskId: ctx.taskId,
@@ -255,16 +252,23 @@ async function runReproduce(
         eventId,
         status: 'FAILED',
         error: reproduceOut.errorText ?? 'reproduceDefect failed',
+        cost: sumStageCost(reproduceOut.cost),
       },
     });
     throw new Error(reproduceOut.errorText ?? 'reproduceDefect failed');
   }
   const oracle = reproduceOut.result;
+  const reproduceCost = sumStageCost(reproduceOut.cost);
 
   if (oracle.mode === 'none') {
     await main.updateTaskActivity({
       taskId: ctx.taskId,
-      updateStage: { eventId, status: 'SKIPPED', output: oracle },
+      updateStage: {
+        eventId,
+        status: 'SKIPPED',
+        output: oracle,
+        cost: reproduceCost,
+      },
     });
     return null;
   }
@@ -279,7 +283,12 @@ async function runReproduce(
 
   await main.updateTaskActivity({
     taskId: ctx.taskId,
-    updateStage: { eventId, status: 'COMPLETED', output: oracle },
+    updateStage: {
+      eventId,
+      status: 'COMPLETED',
+      output: oracle,
+      cost: reproduceCost,
+    },
   });
   return oracle;
 }

@@ -11,7 +11,7 @@ export type StageKey =
   | 'hitl'
   | 'pr';
 
-export type DetailTab = 'overview' | 'visual' | 'events' | 'trace';
+export type DetailTab = 'overview' | 'input' | 'activity' | 'timeline';
 
 export type StageStatusMap = Record<StageKey, StageStatus>;
 

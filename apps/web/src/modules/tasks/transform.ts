@@ -1,25 +1,16 @@
 import type { EventLevel, StageStatus, TaskStage } from '@codewright/domain';
 import type {
-  ActivityLevel,
-  ActivityLogEntry,
-  AgentInvocationView,
-  AttemptView,
   CostBreakdown,
   DiffFile,
-  EventInvocationsView,
-  ExecutionView,
   HealthAlert,
-  RetrospectiveView,
   ReviewView,
   SampleView,
+  StageCostView,
   StageDetail,
   StageTimingView,
-  StageView,
   TaskDetail,
   TaskItem,
   TimelineEvent,
-  ToolCallView,
-  TurnView,
 } from './types';
 
 // ── API response shapes ─────────────────────────────────────
@@ -38,114 +29,21 @@ interface ApiEvent {
   startedAt: string;
   endedAt?: string | null;
   durationMs?: number | null;
-  agentInvocations?: ApiInvocation[];
-}
-
-interface ApiToolCall {
-  id: string;
-  agentTurnId: string | null;
-  toolUseId: string;
-  name: string;
-  input: unknown;
-  output: string | null;
-  outputTruncatedAt: number | null;
-  success: boolean | null;
-  errorText: string | null;
-  spanId: string;
-  startedAt: string;
-  endedAt: string | null;
-  durationMs: number | null;
-}
-
-interface ApiTurn {
-  id: string;
-  turnIndex: number;
-  role: string;
-  textContent: string | null;
-  textTruncatedAt: number | null;
-  toolUseCount: number;
-  inputTokens: number | null;
-  outputTokens: number | null;
-  startedAt: string;
-}
-
-interface ApiInvocation {
-  id: string;
-  agentName: string;
-  model: string;
-  status: string;
-  errorText: string | null;
-  spanId: string;
-  startedAt: string;
-  endedAt: string | null;
-  durationMs: number | null;
-  totalCostUsd: number | null;
-  inputTokens: number | null;
-  outputTokens: number | null;
-  turns: ApiTurn[];
-  toolCalls: ApiToolCall[];
-}
-
-interface ApiAttempt {
-  id: string;
-  attemptNumber: number;
-  triggerKind: string;
-  triggerPayload: unknown;
-  spanId: string;
-  status: string;
-  startedAt: string;
-  endedAt: string | null;
-  durationMs: number | null;
-  invocations: ApiInvocation[];
-}
-
-interface ApiStage {
-  id: string;
-  stageName: string;
-  order: number;
-  status: string;
-  spanId: string;
-  parentSpanId: string;
-  startedAt: string;
-  endedAt: string | null;
-  durationMs: number | null;
-  attempts: ApiAttempt[];
-}
-
-interface ApiRetrospective {
-  id: string;
-  summary: string | null;
-  bottlenecks: unknown;
-  recommendations: unknown;
-  riskFactors: unknown;
-  stats: unknown;
-  model: string | null;
-  costUsd: number | null;
-  createdAt: string;
-}
-
-interface ApiExecution {
-  id: string;
-  workflowKind: string;
-  workflowVersion: number;
-  traceId: string;
-  temporalWorkflowId?: string | null;
-  status: string;
-  startedAt: string;
-  endedAt: string | null;
-  durationMs: number | null;
-  stages: ApiStage[];
-  retrospective: ApiRetrospective | null;
+  // Agent cost rollup for this stage attempt (server-derived).
+  costUsd?: number | null;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  model?: string | null;
 }
 
 export interface ApiTask {
   id: string;
   type: string;
   status: string;
+  input?: unknown;
   error?: string | null;
   workflowId?: string | null;
   events?: ApiEvent[];
-  executions?: ApiExecution[];
   project?: { id: string; name: string; repositoryUrl?: string } | null;
   createdAt: string;
   updatedAt: string;
@@ -189,6 +87,149 @@ const KNOWN_STAGES: TaskStage[] = [
 
 // ── Transform ──────────────────────────────────────────────
 
+/**
+ * Human-readable description of what the task was asked to do, pulled from
+ * its `input` payload (defectDescription / instructions / …). Falls back to
+ * the humanized workflow type when the input carries no obvious text.
+ */
+export function describeInput(type: string, input: unknown): string {
+  if (input && typeof input === 'object') {
+    const o = input as Record<string, unknown>;
+    for (const key of INPUT_BODY_KEYS) {
+      const v = o[key];
+      if (typeof v === 'string' && v.trim()) return v.trim();
+    }
+  }
+  return type.replace(/_/g, ' ');
+}
+
+// Keys searched (in order) for the human-authored body of a task input.
+const INPUT_BODY_KEYS = [
+  'defectDescription',
+  'instructions',
+  'description',
+  'prompt',
+  'query',
+] as const;
+
+// Keys never shown as metadata fields: internal plumbing + the body keys
+// (already rendered as the main description).
+const INPUT_HIDDEN_KEYS = new Set<string>([
+  'taskId',
+  'projectId',
+  'userId',
+  ...INPUT_BODY_KEYS,
+]);
+
+export interface MediaItem {
+  url: string;
+  /** Image/video caption or attachment filename, when provided. */
+  label?: string;
+}
+
+export interface ParsedInput {
+  /** Human-authored description (markdown), or null when input has no text. */
+  body: string | null;
+  /** Remaining scalar fields (baseBranch / tapdBugId / repository …). */
+  fields: { key: string; value: string }[];
+  images: MediaItem[];
+  videos: MediaItem[];
+  attachments: MediaItem[];
+}
+
+/** camelCase → "Camel case" for field labels. */
+function humanizeKey(key: string): string {
+  const spaced = key
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+/**
+ * Normalize a (provisional) media array off the input payload. Tolerates
+ * elements that are either a bare URL string or an object carrying a
+ * `url` plus an optional `caption` / `description` / `name`.
+ *
+ * NOTE: the field names (`images` / `videos` / `attachments`) and element
+ * shape are a forward-compatible convention — no backend writes them yet.
+ * When the upload feature lands, reconcile the real shape HERE only.
+ */
+function normalizeMedia(
+  input: Record<string, unknown>,
+  key: string
+): MediaItem[] {
+  const raw = input[key];
+  if (!Array.isArray(raw)) return [];
+  const out: MediaItem[] = [];
+  for (const el of raw) {
+    if (typeof el === 'string' && el.trim()) {
+      out.push({ url: el.trim() });
+    } else if (el && typeof el === 'object') {
+      const o = el as Record<string, unknown>;
+      const url = o.url ?? o.src ?? o.href;
+      if (typeof url === 'string' && url.trim()) {
+        const label = o.caption ?? o.description ?? o.name ?? o.title;
+        out.push({
+          url: url.trim(),
+          label:
+            typeof label === 'string' && label.trim()
+              ? label.trim()
+              : undefined,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Split a raw task `input` payload into the pieces the Input tab renders:
+ * the main description body, the remaining scalar metadata fields, and any
+ * (future) image / video / attachment media.
+ */
+export function parseTaskInput(input: unknown): ParsedInput {
+  const empty: ParsedInput = {
+    body: null,
+    fields: [],
+    images: [],
+    videos: [],
+    attachments: [],
+  };
+  if (!input || typeof input !== 'object') return empty;
+  const o = input as Record<string, unknown>;
+
+  let body: string | null = null;
+  for (const key of INPUT_BODY_KEYS) {
+    const v = o[key];
+    if (typeof v === 'string' && v.trim()) {
+      body = v.trim();
+      break;
+    }
+  }
+
+  const fields: { key: string; value: string }[] = [];
+  for (const [key, value] of Object.entries(o)) {
+    if (INPUT_HIDDEN_KEYS.has(key)) continue;
+    if (
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean'
+    ) {
+      const str = String(value).trim();
+      if (str) fields.push({ key: humanizeKey(key), value: str });
+    }
+  }
+
+  return {
+    body,
+    fields,
+    images: normalizeMedia(o, 'images'),
+    videos: normalizeMedia(o, 'videos'),
+    attachments: normalizeMedia(o, 'attachments'),
+  };
+}
+
 export function transformTaskToItem(apiTask: ApiTask): TaskItem {
   const totals = computeAgentTotals(apiTask.events ?? []);
   return {
@@ -215,33 +256,15 @@ export function transformTaskToItem(apiTask: ApiTask): TaskItem {
     triggerSource: 'manual',
     error: apiTask.error ?? null,
     completedAt: apiTask.completedAt ?? null,
+    input: apiTask.input,
   };
 }
 
 export function transformTaskToDetail(apiTask: ApiTask): TaskDetail {
   const task = transformTaskToItem(apiTask);
   const events = apiTask.events ?? [];
-  const executions = (apiTask.executions ?? []).map(mapExecution);
-  const currentExecution = executions[0] ?? null;
 
   const timeline: TimelineEvent[] = events.map(mapEvent);
-
-  // Phase 1 trace view: pair each STAGE-kind event with its agent
-  // invocations. Drop events with zero invocations (REVIEW-kind, FILTER,
-  // PR, anything else with no agent run) so TraceView only shows useful
-  // rows.
-  const eventInvocations: EventInvocationsView[] = events
-    .filter((e) => e.kind === 'STAGE' && (e.agentInvocations ?? []).length > 0)
-    .map((e) => ({
-      eventId: e.id,
-      stageKey: e.stageKey,
-      attemptNumber: e.attemptNumber,
-      status: e.status,
-      startedAt: e.startedAt,
-      endedAt: e.endedAt ?? null,
-      durationMs: e.durationMs ?? null,
-      invocations: (e.agentInvocations ?? []).map(mapInvocation),
-    }));
 
   // Visual tab Gantt + breakdown source: every STAGE-kind TaskEvent
   // becomes one timing entry. Includes stages without agents (FILTER,
@@ -256,11 +279,12 @@ export function transformTaskToDetail(apiTask: ApiTask): TaskDetail {
       startedAt: e.startedAt,
       endedAt: e.endedAt ?? null,
       durationMs: e.durationMs ?? null,
+      costUsd: e.costUsd ?? null,
+      inputTokens: e.inputTokens ?? null,
+      outputTokens: e.outputTokens ?? null,
+      model: e.model ?? null,
+      error: e.error ?? null,
     }));
-
-  // Activity log: stage transitions + agent invocations + tool calls
-  // merged into one chronological feed.
-  const activityLog = buildActivityLog(events);
 
   // Cost rollup is deferred to the agent_log work — empty for now.
   const cost: CostBreakdown[] = [];
@@ -302,13 +326,22 @@ export function transformTaskToDetail(apiTask: ApiTask): TaskDetail {
     if (out.url) prUrl = String(out.url);
   }
 
-  const retryCount =
-    currentExecution?.stages.reduce(
-      (acc, s) => acc + Math.max(0, s.attempts.length - 1),
-      0
-    ) ?? 0;
+  // Retries = STAGE attempts beyond the first, per stage.
+  const maxAttemptByStage = new Map<string, number>();
+  for (const e of events) {
+    if (e.kind !== 'STAGE') continue;
+    maxAttemptByStage.set(
+      e.stageKey,
+      Math.max(maxAttemptByStage.get(e.stageKey) ?? 0, e.attemptNumber)
+    );
+  }
+  const retryCount = [...maxAttemptByStage.values()].reduce(
+    (acc, n) => acc + Math.max(0, n - 1),
+    0
+  );
 
   const totals = computeAgentTotals(events);
+  const stageStats = computeStageCosts(events);
 
   return {
     task,
@@ -325,7 +358,7 @@ export function transformTaskToDetail(apiTask: ApiTask): TaskDetail {
       missingSteps: [],
     },
     summary: {
-      description: apiTask.type.replace(/_/g, ' '),
+      description: describeInput(apiTask.type, apiTask.input),
       issue: '',
       contextFiles: [],
       outputs: [],
@@ -340,147 +373,11 @@ export function transformTaskToDetail(apiTask: ApiTask): TaskDetail {
       totalCost: formatCostUsd(totals.totalCostUsd),
     },
     approvals: [],
-    currentExecution,
-    executions,
+    stageStats,
     samples,
     reviews,
-    eventInvocations,
     stageTimings,
-    activityLog,
   };
-}
-
-// ── Activity log derivation ─────────────────────────────────
-
-/**
- * Flatten three event sources into a single chronological feed:
- *   - STAGE transitions (open / terminal) from TaskEvent
- *   - REVIEW events from TaskEvent
- *   - agent invocation start / end
- *   - per-tool calls
- *
- * Each entry carries enough metadata for the row to render without
- * additional lookups; sort is stable by timestamp ascending.
- */
-function buildActivityLog(events: ApiEvent[]): ActivityLogEntry[] {
-  const out: ActivityLogEntry[] = [];
-
-  for (const e of events) {
-    const stage = e.stageKey.toLowerCase();
-    const stageDisplay = e.stageKey;
-
-    if (e.kind === 'STAGE') {
-      out.push({
-        id: `stage-open-${e.id}`,
-        timestamp: e.startedAt,
-        category: 'stage',
-        stage,
-        title: `${stageDisplay} attempt ${e.attemptNumber} opened`,
-        level: 'info',
-      });
-      if (e.endedAt) {
-        out.push({
-          id: `stage-end-${e.id}`,
-          timestamp: e.endedAt,
-          category: 'stage',
-          stage,
-          title: `${stageDisplay} attempt ${e.attemptNumber} ${e.status.toLowerCase()}`,
-          detail:
-            typeof e.durationMs === 'number'
-              ? formatActivityDuration(e.durationMs)
-              : undefined,
-          level: stageStatusLevel(e.status),
-        });
-      }
-    } else if (e.kind === 'REVIEW' && e.endedAt) {
-      out.push({
-        id: `review-${e.id}`,
-        timestamp: e.endedAt,
-        category: 'stage',
-        stage,
-        title: `Review submitted on ${stageDisplay}`,
-        level: e.status === 'COMPLETED' ? 'info' : 'warn',
-      });
-    }
-
-    for (const inv of e.agentInvocations ?? []) {
-      out.push({
-        id: `agent-start-${inv.id}`,
-        timestamp: inv.startedAt,
-        category: 'agent',
-        stage,
-        title: `${inv.agentName} started`,
-        detail: inv.model,
-        level: 'info',
-        name: inv.agentName,
-      });
-      if (inv.endedAt) {
-        const turnCount = inv.turns.length;
-        const cost =
-          typeof inv.totalCostUsd === 'number'
-            ? `$${inv.totalCostUsd.toFixed(4)}`
-            : null;
-        const duration =
-          typeof inv.durationMs === 'number'
-            ? formatActivityDuration(inv.durationMs)
-            : null;
-        const detail = [
-          turnCount > 0
-            ? `${turnCount} turn${turnCount === 1 ? '' : 's'}`
-            : null,
-          cost,
-          duration,
-        ]
-          .filter(Boolean)
-          .join(' · ');
-        out.push({
-          id: `agent-end-${inv.id}`,
-          timestamp: inv.endedAt,
-          category: 'agent',
-          stage,
-          title: `${inv.agentName} ${inv.status.toLowerCase()}`,
-          detail: detail || undefined,
-          level: inv.status === 'ERROR' ? 'error' : 'info',
-          name: inv.agentName,
-          durationMs: inv.durationMs ?? null,
-          costUsd: inv.totalCostUsd ?? null,
-        });
-      }
-
-      for (const tc of inv.toolCalls) {
-        out.push({
-          id: `tool-${tc.id}`,
-          timestamp: tc.startedAt,
-          category: 'tool',
-          stage,
-          title: tc.name,
-          detail:
-            typeof tc.durationMs === 'number'
-              ? formatActivityDuration(tc.durationMs)
-              : undefined,
-          level: tc.success === false ? 'error' : 'info',
-          name: tc.name,
-          durationMs: tc.durationMs ?? null,
-          success: tc.success,
-        });
-      }
-    }
-  }
-
-  out.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-  return out;
-}
-
-function stageStatusLevel(status: string): ActivityLevel {
-  switch (status) {
-    case 'FAILED':
-      return 'error';
-    case 'REJECTED':
-    case 'AWAITING':
-      return 'warn';
-    default:
-      return 'info';
-  }
 }
 
 // ── Header stat helpers ─────────────────────────────────────
@@ -499,17 +396,56 @@ function computeAgentTotals(events: ApiEvent[]): AgentTotals {
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
   let model: string | null = null;
+  // Cost now lives on the STAGE TaskEvent (written when the stage's agents
+  // finish); sum across stages for the task hero.
   for (const e of events) {
-    for (const inv of e.agentInvocations ?? []) {
-      totalCostUsd += inv.totalCostUsd ?? 0;
-      totalInputTokens += inv.inputTokens ?? 0;
-      totalOutputTokens += inv.outputTokens ?? 0;
-      if (model == null && inv.model && inv.model !== 'unknown') {
-        model = inv.model;
-      }
+    totalCostUsd += e.costUsd ?? 0;
+    totalInputTokens += e.inputTokens ?? 0;
+    totalOutputTokens += e.outputTokens ?? 0;
+    if (model == null && e.model && e.model !== 'unknown') {
+      model = e.model;
     }
   }
   return { totalCostUsd, totalInputTokens, totalOutputTokens, model };
+}
+
+// Server stage keys → web stage keys, for folding per-stage agent cost.
+const SERVER_TO_WEB_STAGE: Record<string, string> = {
+  ANALYSIS: 'analyze',
+  REPRODUCE: 'reproduce',
+  IMPLEMENT: 'implement',
+  FILTER: 'filter',
+  CRITIC: 'critic',
+  PR: 'pr',
+};
+
+/**
+ * Per-stage agent cost rollup (model + tokens + cost), summed across each
+ * stage's attempts. Keyed by web stage key. Stages without agents (FILTER,
+ * PR) carry zeroed tokens/cost and a null model. The synthetic `hitl` stage
+ * has no events of its own — consumers fall back to `critic`.
+ */
+function computeStageCosts(events: ApiEvent[]): Record<string, StageCostView> {
+  const out: Record<string, StageCostView> = {};
+  for (const e of events) {
+    if (e.kind !== 'STAGE') continue;
+    const key = SERVER_TO_WEB_STAGE[e.stageKey.toUpperCase()];
+    if (!key) continue;
+    const cur = out[key] ?? {
+      model: null,
+      inputTokens: 0,
+      outputTokens: 0,
+      costUsd: 0,
+    };
+    cur.inputTokens += e.inputTokens ?? 0;
+    cur.outputTokens += e.outputTokens ?? 0;
+    cur.costUsd += e.costUsd ?? 0;
+    if (cur.model == null && e.model && e.model !== 'unknown') {
+      cur.model = e.model;
+    }
+    out[key] = cur;
+  }
+  return out;
 }
 
 /**
@@ -571,130 +507,5 @@ function mapEvent(e: ApiEvent): TimelineEvent {
     stageExecutionId: null,
     attemptExecutionId: null,
     spanId: null,
-  };
-}
-
-function mapExecution(e: ApiExecution): ExecutionView {
-  return {
-    id: e.id,
-    workflowKind: e.workflowKind,
-    workflowVersion: e.workflowVersion,
-    traceId: e.traceId,
-    status: e.status,
-    startedAt: e.startedAt,
-    endedAt: e.endedAt,
-    durationMs: e.durationMs,
-    stages: e.stages.map(mapStage),
-    retrospective: e.retrospective ? mapRetrospective(e.retrospective) : null,
-  };
-}
-
-function mapStage(s: ApiStage): StageView {
-  return {
-    id: s.id,
-    stageName: s.stageName,
-    order: s.order,
-    status: s.status,
-    spanId: s.spanId,
-    startedAt: s.startedAt,
-    endedAt: s.endedAt,
-    durationMs: s.durationMs,
-    attempts: s.attempts.map(mapAttempt),
-    reviews: [],
-  };
-}
-
-function mapAttempt(a: ApiAttempt): AttemptView {
-  return {
-    id: a.id,
-    attemptNumber: a.attemptNumber,
-    triggerKind: a.triggerKind,
-    triggerPayload: a.triggerPayload,
-    spanId: a.spanId,
-    status: a.status,
-    startedAt: a.startedAt,
-    endedAt: a.endedAt,
-    durationMs: a.durationMs,
-    invocations: a.invocations.map(mapInvocation),
-    samples: [],
-  };
-}
-
-function mapInvocation(i: ApiInvocation): AgentInvocationView {
-  return {
-    id: i.id,
-    agentName: i.agentName,
-    model: i.model,
-    status: i.status,
-    errorText: i.errorText,
-    spanId: i.spanId,
-    startedAt: i.startedAt,
-    endedAt: i.endedAt,
-    durationMs: i.durationMs,
-    totalCostUsd: i.totalCostUsd,
-    inputTokens: i.inputTokens,
-    outputTokens: i.outputTokens,
-    turns: i.turns.map(mapTurn),
-    toolCalls: i.toolCalls.map(mapToolCall),
-  };
-}
-
-function mapTurn(t: ApiTurn): TurnView {
-  return {
-    id: t.id,
-    turnIndex: t.turnIndex,
-    role: t.role,
-    textContent: t.textContent,
-    textTruncatedAt: t.textTruncatedAt,
-    toolUseCount: t.toolUseCount,
-    inputTokens: t.inputTokens,
-    outputTokens: t.outputTokens,
-    startedAt: t.startedAt,
-  };
-}
-
-function mapToolCall(tc: ApiToolCall): ToolCallView {
-  return {
-    id: tc.id,
-    agentTurnId: tc.agentTurnId,
-    toolUseId: tc.toolUseId,
-    name: tc.name,
-    input: tc.input,
-    output: tc.output,
-    outputTruncatedAt: tc.outputTruncatedAt,
-    success: tc.success,
-    errorText: tc.errorText,
-    spanId: tc.spanId,
-    startedAt: tc.startedAt,
-    endedAt: tc.endedAt,
-    durationMs: tc.durationMs,
-  };
-}
-
-function mapRetrospective(r: ApiRetrospective): RetrospectiveView {
-  return {
-    id: r.id,
-    summary: r.summary,
-    bottlenecks: Array.isArray(r.bottlenecks)
-      ? (r.bottlenecks as RetrospectiveView['bottlenecks'])
-      : [],
-    recommendations: Array.isArray(r.recommendations)
-      ? (r.recommendations as RetrospectiveView['recommendations'])
-      : [],
-    riskFactors: Array.isArray(r.riskFactors)
-      ? (r.riskFactors as RetrospectiveView['riskFactors'])
-      : [],
-    stats: (r.stats as RetrospectiveView['stats']) ?? {
-      totalDurationMs: 0,
-      perStage: {},
-      retryCount: 0,
-      sampleCount: 0,
-      reviewCount: 0,
-      totalCostUsd: 0,
-      toolHistogram: {},
-    },
-    model: r.model,
-    costUsd: r.costUsd,
-    createdAt: r.createdAt,
   };
 }

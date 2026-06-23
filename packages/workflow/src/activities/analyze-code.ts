@@ -8,6 +8,7 @@ import {
 } from '../utils/agent-activity.js';
 
 export async function analyzeCodeActivity(
+  taskEventId: string,
   state: SandboxState
 ): Promise<AgentActivityResult<AnalysisResult>> {
   log.info('Running code analysis');
@@ -15,11 +16,9 @@ export async function analyzeCodeActivity(
     state,
     'analysis',
     'analyzeRepository',
+    taskEventId,
     (sandbox, observer) => analyzeRepository(sandbox, observer)
   );
-  log.info(
-    { eventCount: out.observation.events.length, status: out.status },
-    'Code analysis activity returned'
-  );
+  log.info({ status: out.status }, 'Code analysis activity returned');
   return out;
 }

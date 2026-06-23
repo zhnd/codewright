@@ -66,3 +66,31 @@ builder.subscriptionField('taskUpdated', (t) =>
     },
   })
 );
+
+/**
+ * Live tasks-list subscription. Yields the caller's full task list
+ * whenever ANY of their tasks changes (status / stage), so the dashboard
+ * list refreshes off the pg_notify stream instead of polling. Keyed by
+ * userId via the `userId` field now carried in the NOTIFY payload.
+ */
+builder.subscriptionField('tasksChanged', (t) =>
+  t.prismaField({
+    type: ['Task'],
+    authScopes: { authenticated: true },
+    subscribe: async function* (_parent, _args, ctx) {
+      if (!ctx.user) return;
+      const userId = ctx.user.id;
+      yield null; // baseline
+      for await (const _ of taskPubSub.iterateUser(userId)) {
+        yield null;
+      }
+    },
+    resolve: (query, _parent, _args, ctx) => {
+      return ctx.prisma.task.findMany({
+        ...query,
+        where: { userId: ctx.user?.id },
+        orderBy: { createdAt: 'desc' },
+      });
+    },
+  })
+);

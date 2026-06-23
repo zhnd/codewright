@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
+  CANCEL_TASK,
   GET_TASK,
   RETRY_TASK,
   REVIEW_TASK,
@@ -115,6 +116,7 @@ export function useService({ taskId }: UseServiceInput) {
   const [retryTask, { loading: retrying }] = useMutation<{
     retryTask?: { id: string } | null;
   }>(RETRY_TASK);
+  const [cancelTask, { loading: canceling }] = useMutation(CANCEL_TASK);
 
   const submitReview = useCallback(
     async (lane: string, feedback: string) => {
@@ -148,6 +150,20 @@ export function useService({ taskId }: UseServiceInput) {
     }
   }, [retryTask, router, taskId]);
 
+  // Cancellation requests a workflow stop; the workflow's cancellation
+  // branch writes the CANCELLED status back, which the subscription pushes
+  // here. No navigation — the user stays on the same task. We still refetch
+  // to close the gap before the next subscription tick lands.
+  const cancel = useCallback(async () => {
+    try {
+      await cancelTask({ variables: { taskId } });
+      toast.success('Cancellation requested');
+      await refetch();
+    } catch {
+      // Error already surfaced by the Apollo error link.
+    }
+  }, [cancelTask, refetch, taskId]);
+
   return {
     loading,
     detail,
@@ -163,6 +179,8 @@ export function useService({ taskId }: UseServiceInput) {
     reviewing,
     retry,
     retrying,
+    cancel,
+    canceling,
   };
 }
 

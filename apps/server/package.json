@@ -15,13 +15,13 @@
     "start:migrate:prod": "pnpm --filter @codewright/database migrate:deploy && pnpm start"
   },
   "dependencies": {
-    "@apollo/server": "^5.5.0",
+    "@apollo/server": "^5.5.1",
     "@as-integrations/fastify": "^3.1.0",
-    "@better-auth/prisma-adapter": "^1.6.9",
+    "@better-auth/prisma-adapter": "^1.6.20",
     "@fastify/cors": "^11.2.0",
     "@fastify/websocket": "^11.2.0",
-    "@pothos/core": "^4.12.0",
-    "@pothos/plugin-dataloader": "^4.4.3",
+    "@pothos/core": "^4.13.0",
+    "@pothos/plugin-dataloader": "^4.4.4",
     "@pothos/plugin-prisma": "catalog:",
     "@pothos/plugin-relay": "^4.7.0",
     "@pothos/plugin-scope-auth": "^4.1.6",
@@ -39,7 +39,7 @@
     "graphql-subscriptions": "^3.0.0",
     "graphql-ws": "catalog:",
     "pg": "catalog:",
-    "ws": "^8.20.0"
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "@types/pg": "catalog:",

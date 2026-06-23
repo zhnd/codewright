@@ -7,12 +7,7 @@ import {
   TICK_CANDIDATES,
   TICK_TARGET,
 } from './constants';
-import type {
-  BreakdownRow,
-  CurrentStageInfo,
-  StageKey,
-  TimelineSegment,
-} from './types';
+import type { BreakdownRow, StageKey, TimelineSegment } from './types';
 
 // ── Gantt geometry ──────────────────────────────────────────
 
@@ -94,24 +89,57 @@ export function formatClockFromSeconds(t: number): string {
   return `${total}s`;
 }
 
+/** Absolute wall-clock start, local time — "14:32:07". Tooltip use. */
+export function formatStartClock(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+}
+
+/** Smart-precision USD — sub-cent amounts keep 4 decimals. */
+export function formatCostUsd(usd: number): string {
+  if (usd <= 0) return '$0';
+  if (usd < 0.01) return `$${usd.toFixed(4)}`;
+  if (usd < 1) return `$${usd.toFixed(3)}`;
+  return `$${usd.toFixed(2)}`;
+}
+
+/** Compact token count — "1.2k", "987". */
+export function formatTokens(n: number): string {
+  if (n < 1000) return `${n}`;
+  return `${(n / 1000).toFixed(n < 10000 ? 1 : 0)}k`;
+}
+
 // ── Segment derivation + aggregation ────────────────────────
 
 /**
  * Build timeline segments from STAGE-kind TaskEvents. t0/t1 are seconds
  * relative to the earliest stage start. Stages keys are normalized to
  * the lowercase StageKey alphabet; unknown keys are dropped.
+ *
+ * `now` parameterizes the end of still-open segments so a running bar can
+ * grow on each tick instead of freezing at first render. Defaults to
+ * `Date.now()` for callers that don't drive a clock.
  */
-export function deriveSegments(timings: StageTimingView[]): TimelineSegment[] {
+export function deriveSegments(
+  timings: StageTimingView[],
+  now: number = Date.now()
+): TimelineSegment[] {
   if (timings.length === 0) return [];
   const baseMs = Math.min(
     ...timings.map((t) => new Date(t.startedAt).getTime())
   );
-  const now = Date.now();
   const segments: TimelineSegment[] = [];
   for (const ev of timings) {
     const stage = mapStageKey(ev.stageKey);
     if (!stage || !STAGE_KEYS.has(stage)) continue;
     const startMs = new Date(ev.startedAt).getTime();
+    const open = !ev.endedAt;
     const endMs = ev.endedAt ? new Date(ev.endedAt).getTime() : now;
     segments.push({
       stage,
@@ -119,6 +147,13 @@ export function deriveSegments(timings: StageTimingView[]): TimelineSegment[] {
       status: mapAttemptStatus(ev.status),
       t0: Math.max(0, (startMs - baseMs) / 1000),
       t1: Math.max(0, (endMs - baseMs) / 1000),
+      startedAt: ev.startedAt,
+      open,
+      costUsd: ev.costUsd,
+      inputTokens: ev.inputTokens,
+      outputTokens: ev.outputTokens,
+      model: ev.model,
+      error: ev.error,
     });
   }
   return segments.sort((a, b) => a.t0 - b.t0);
@@ -160,60 +195,34 @@ export function wallTime(segments: TimelineSegment[]): number {
   return Math.max(...segments.map((s) => s.t1)) * 1000;
 }
 
-export function countDone(segments: TimelineSegment[]): number {
-  const doneStages = new Set<string>();
-  for (const s of segments) {
-    if (s.status === 'done') doneStages.add(s.stage);
-  }
-  return doneStages.size;
-}
-
-/** Sum of (max attempt − 1) per stage. */
-export function countRetries(segments: TimelineSegment[]): number {
-  const maxByStage = new Map<string, number>();
-  for (const s of segments) {
-    maxByStage.set(s.stage, Math.max(maxByStage.get(s.stage) ?? 0, s.attempt));
-  }
-  let retries = 0;
-  for (const n of maxByStage.values()) retries += Math.max(0, n - 1);
-  return retries;
-}
-
-export function currentStageRunning(segments: TimelineSegment[]): boolean {
-  if (segments.length === 0) return false;
-  const last = segments[segments.length - 1];
-  return last.status === 'awaiting' || last.status === 'running';
-}
-
-export function currentStage(
-  segments: TimelineSegment[]
-): CurrentStageInfo | null {
-  if (segments.length === 0) return null;
-  const last = segments[segments.length - 1];
-  const meta = STAGE_LIST.find((s) => s.key === last.stage);
-  return {
-    label: meta?.label ?? last.stage,
-    subtitle:
-      last.status === 'awaiting'
-        ? 'awaiting review'
-        : last.status === 'running'
-          ? 'in progress'
-          : last.status,
-    tone:
-      last.status === 'awaiting' || last.status === 'running'
-        ? 'var(--accent)'
-        : 'var(--foreground)',
-  };
+/**
+ * Sum of segment durations (ms). Stages run sequentially, so this is the
+ * "active" execution time; `wallTime - activeTime` is the idle/wait time
+ * spent between stages (queueing, human review gates).
+ */
+export function activeTime(segments: TimelineSegment[]): number {
+  return segments.reduce((acc, s) => acc + (s.t1 - s.t0) * 1000, 0);
 }
 
 export function perStageSummary(
   segments: TimelineSegment[],
   wallMs: number
 ): BreakdownRow[] {
-  const agg = new Map<StageKey, { ms: number; attempts: number }>();
+  const agg = new Map<
+    StageKey,
+    { ms: number; attempts: number; status: TimelineSegment['status'] }
+  >();
   for (const s of segments) {
-    const cur = agg.get(s.stage) ?? { ms: 0, attempts: 0 };
+    const cur = agg.get(s.stage) ?? {
+      ms: 0,
+      attempts: 0,
+      status: s.status,
+    };
     cur.ms += (s.t1 - s.t0) * 1000;
+    // The stage's status is its latest attempt's status (a retry that
+    // succeeds supersedes an earlier failure). Segments arrive sorted by
+    // start, so the highest attempt number wins.
+    if (s.attempt >= cur.attempts) cur.status = s.status;
     cur.attempts = Math.max(cur.attempts, s.attempt);
     agg.set(s.stage, cur);
   }
@@ -226,6 +235,7 @@ export function perStageSummary(
       duration: v.ms,
       percent: wallMs > 0 ? Math.round((v.ms / wallMs) * 100) : 0,
       attempts: v.attempts,
+      status: v.status,
     });
   }
   return rows;

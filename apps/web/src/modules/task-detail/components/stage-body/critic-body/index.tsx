@@ -23,7 +23,6 @@ export function CriticBody({ payload }: { payload: Record<string, unknown> }) {
     <div>
       <StageHeader
         title="Critic review"
-        stage="critic"
         chips={
           [
             <Chip

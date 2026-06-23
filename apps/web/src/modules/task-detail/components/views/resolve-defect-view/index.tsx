@@ -3,7 +3,7 @@ import {
   type StageStatus,
   StageTrack,
 } from '@/components/common/stage-track';
-import { Tally } from '@/components/common/tally';
+import { TAB_CONTENT_WIDTH, TAB_SCROLL_PADDING } from '../../../constants';
 import type {
   StageDataMap,
   StageKey,
@@ -11,6 +11,7 @@ import type {
   TaskDetail,
 } from '../../../types';
 import { StageBody } from '../../stage-body';
+import { StageStatsContext } from '../../stage-body/parts';
 
 interface ResolveDefectViewProps {
   detail: TaskDetail;
@@ -53,21 +54,37 @@ export function ResolveDefectView({
           onSelect={(k) => setSelectedStage(k as StageKey)}
           list={DEFAULT_STAGES}
           timings={timings}
+          retries={Object.fromEntries(
+            (Object.keys(stageData) as StageKey[]).map((k) => [
+              k,
+              Math.max(0, stageData[k].attempts.length - 1),
+            ])
+          )}
         />
-        <Tally className="mt-4" />
       </div>
 
-      <div className="overflow-y-auto px-4 py-5 sm:px-6 lg:px-9 lg:py-7">
-        <div className="mx-auto max-w-220 pb-12">
-          <StageBody
-            stage={selectedStage}
-            status={stages[selectedStage]}
-            stageData={stageData}
-            detail={detail}
-            onReview={submitReview}
-            reviewing={reviewing}
-            hitlWaited={hitlWaited}
-          />
+      <div className={`overflow-y-auto ${TAB_SCROLL_PADDING}`}>
+        <div className={`${TAB_CONTENT_WIDTH} pb-12`}>
+          <StageStatsContext.Provider
+            value={(() => {
+              // The synthetic HITL stage has no events — show critic's cost.
+              const key = selectedStage === 'hitl' ? 'critic' : selectedStage;
+              const cost = detail.stageStats[key];
+              return cost
+                ? { ...cost, duration: timings[selectedStage] ?? null }
+                : null;
+            })()}
+          >
+            <StageBody
+              stage={selectedStage}
+              status={stages[selectedStage]}
+              stageData={stageData}
+              detail={detail}
+              onReview={submitReview}
+              reviewing={reviewing}
+              hitlWaited={hitlWaited}
+            />
+          </StageStatsContext.Provider>
         </div>
       </div>
     </div>
