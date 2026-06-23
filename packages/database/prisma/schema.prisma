@@ -261,7 +261,6 @@ model Task {
   completedAt   DateTime?  // first transition into a terminal status
 
   events        TaskEvent[]
-  executions    WorkflowExecution[]
 
   @@index([userId])
   @@index([projectId])
@@ -301,10 +300,21 @@ model TaskEvent {
   endedAt          DateTime?
   durationMs       Int?
 
-  // Phase 1 agent observability: each STAGE-kind event may have one or
-  // more AgentInvocation rows attached (per-agent technical telemetry,
-  // separate from the business-level event lifecycle above).
-  agentInvocations AgentInvocation[]
+  // Agent cost rollup for this stage attempt (sum across the stage's agent
+  // runs). Written when the stage completes; the task hero sums these.
+  costUsd          Float?
+  inputTokens      Int?
+  outputTokens     Int?
+  model            String?
+
+  // OTel stage span — root of this attempt's agent-run/tool subtree.
+  // Each AgentMessageLog row's invocation span (parentSpanId) is a child
+  // of this, reconstructed via the taskEventId FK. Null for pre-migration
+  // events.
+  spanId           String?
+
+  // The streamed agent message log for this stage attempt (append-only).
+  messageLog       AgentMessageLog[]
 
   @@unique([taskId, kind, stageKey, attemptNumber])
   @@index([taskId, startedAt])
@@ -342,149 +352,79 @@ model WorkflowStage {
   @@map("workflow_stage")
 }
 
-// ── Layer 1: Execution telemetry (deferred — kept for trace work) ─────
+// Append-only agent message log: one row per streamed agent message
+// (provider-neutral, OTel-GenAI-shaped). Written incrementally *during*
+// the agent run (not just at activity end) so the web can follow + replay
+// the agent live. The sole agent-observability record alongside TaskEvent
+// (stage + status + cost).
+model AgentMessageLog {
+  id                String    @id @default(cuid())
+  // Global monotonic read cursor (insertion order). Clients page/stream by
+  // (taskId, cursor > lastSeen) — no cross-activity coordination needed.
+  cursor            BigInt    @default(autoincrement())
 
-model WorkflowExecution {
-  id                 String           @id @default(cuid())
-  taskId             String
-  task               Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  workflowKind       String
-  workflowVersion    Int              @default(1)
-  traceId            String           @unique
-  temporalWorkflowId String?
-  status             ExecutionStatus  @default(RUNNING)
-  startedAt          DateTime         @default(now())
-  endedAt            DateTime?
-  durationMs         Int?
-  stages             StageExecution[]
-  retrospective      Retrospective?
+  // Anchored to the STAGE TaskEvent this run belongs to.
+  taskEventId       String
+  taskEvent         TaskEvent @relation(fields: [taskEventId], references: [id], onDelete: Cascade)
+  // Denormalized for the NOTIFY trigger + per-task subscription fan-out,
+  // avoiding a join in the trigger / subscription query.
+  taskId            String
+  // Per-task OTel trace id (= traceIdForTask(taskId), stable across all
+  // stages/runs). Lets every message-log row of a task be correlated into
+  // one trace: traceId → TaskEvent.spanId → parentSpanId → spanId.
+  traceId           String
 
-  @@index([taskId])
-  @@index([workflowKind, status])
-  @@map("workflow_execution")
-}
+  // Temporal activityId of the agent run + monotonic seq within one
+  // attempt. Together they idempotently dedupe at-least-once streamed
+  // writes (and a retry deletes-and-rewrites by activityId).
+  activityId        String
+  seq               Int
 
-model StageExecution {
-  id                  String             @id @default(cuid())
-  workflowExecutionId String
-  workflowExecution   WorkflowExecution  @relation(fields: [workflowExecutionId], references: [id], onDelete: Cascade)
-  stageName           String
-  order               Int
-  status              StageStatus        @default(PENDING)
-  spanId              String             @unique
-  parentSpanId        String
-  startedAt           DateTime           @default(now())
-  endedAt             DateTime?
-  durationMs          Int?
-  attempts            AttemptExecution[]
-
-  @@index([workflowExecutionId, order])
-  @@map("stage_execution")
-}
-
-model AttemptExecution {
-  id               String            @id @default(cuid())
-  stageExecutionId String
-  stageExecution   StageExecution    @relation(fields: [stageExecutionId], references: [id], onDelete: Cascade)
-  attemptNumber    Int
-  triggerKind      String
-  triggerPayload   Json?
-  spanId           String            @unique
-  parentSpanId     String
-  status           StageStatus       @default(RUNNING)
-  startedAt        DateTime          @default(now())
-  endedAt          DateTime?
-  durationMs       Int?
-  invocations      AgentInvocation[]
-
-  @@unique([stageExecutionId, attemptNumber])
-  @@map("attempt_execution")
-}
-
-model AgentInvocation {
-  id                 String                @id @default(cuid())
-  // Phase 1 (event-model link): every agent run is anchored to its parent
-  // STAGE TaskEvent. attemptExecutionId is left for legacy compatibility
-  // with the (currently unused) lifecycle tier and is now nullable.
-  taskEventId        String?
-  taskEvent          TaskEvent?            @relation(fields: [taskEventId], references: [id], onDelete: Cascade)
-  attemptExecutionId String?
-  attemptExecution   AttemptExecution?     @relation(fields: [attemptExecutionId], references: [id], onDelete: Cascade)
-  agentName          String
-  model              String
-  status             AgentInvocationStatus @default(RUNNING)
-  errorText          String?
-  spanId             String                @unique
-  parentSpanId       String
-  startedAt          DateTime              @default(now())
-  endedAt            DateTime?
-  durationMs         Int?
-  totalCostUsd       Float?
-  inputTokens        Int?
-  outputTokens       Int?
-  turns              AgentTurn[]
-  toolCalls          ToolCall[]
-
-  @@index([attemptExecutionId])
-  @@index([taskEventId])
-  @@map("agent_invocation")
-}
-
-model AgentTurn {
-  id                String          @id @default(cuid())
-  agentInvocationId String
-  agentInvocation   AgentInvocation @relation(fields: [agentInvocationId], references: [id], onDelete: Cascade)
-  turnIndex         Int
-  role              String
+  // Provider-neutral event kind: message | reasoning | tool_call |
+  // tool_result | usage | error.
+  kind              String
+  role              String?
   textContent       String?
   textTruncatedAt   Int?
-  toolUseCount      Int             @default(0)
-  inputTokens       Int?
-  outputTokens      Int?
-  startedAt         DateTime        @default(now())
-  toolCalls         ToolCall[]
+  toolUseId         String?
+  toolName          String?
+  payload           Json?
+  payloadTruncatedAt Int?
+  // Reserved: pointer to large body offloaded to object storage. Null for
+  // now (inline truncation only).
+  blobRef           String?
 
-  @@unique([agentInvocationId, turnIndex])
-  @@map("agent_turn")
-}
-
-model ToolCall {
-  id                String          @id @default(cuid())
-  agentInvocationId String
-  agentInvocation   AgentInvocation @relation(fields: [agentInvocationId], references: [id], onDelete: Cascade)
-  agentTurnId       String?
-  agentTurn         AgentTurn?      @relation(fields: [agentTurnId], references: [id], onDelete: SetNull)
-  toolUseId         String
-  name              String
-  input             Json
-  output            String?
-  outputTruncatedAt Int?
-  success           Boolean?
-  errorText         String?
-  spanId            String          @unique
+  spanId            String    @unique
   parentSpanId      String
-  startedAt         DateTime        @default(now())
-  endedAt           DateTime?
-  durationMs        Int?
+  createdAt         DateTime  @default(now())
 
-  @@unique([agentInvocationId, toolUseId])
-  @@index([agentInvocationId, startedAt])
-  @@index([name])
-  @@map("tool_call")
+  @@unique([activityId, seq])
+  @@index([taskId, cursor])
+  @@index([taskEventId])
+  @@index([traceId])
+  @@map("agent_message_log")
 }
 
-model Retrospective {
-  id                  String            @id @default(cuid())
-  workflowExecutionId String            @unique
-  workflowExecution   WorkflowExecution @relation(fields: [workflowExecutionId], references: [id], onDelete: Cascade)
-  summary             String?
-  bottlenecks         Json              @default("[]")
-  recommendations     Json              @default("[]")
-  riskFactors         Json              @default("[]")
-  stats               Json              @default("{}")
-  model               String?
-  costUsd             Float?
-  createdAt           DateTime          @default(now())
+// ── Model pricing ─────────────────────────────────────────────
+//
+// Per-model token prices used to derive run cost from token counts (the
+// SDK-reported figure is wrong for custom/gateway models). Starts empty;
+// rows are populated on demand: when a run uses a model with no row here,
+// the pricing service fetches it from a public price API (LiteLLM) and
+// upserts it. The in-code MODEL_PRICING map in @codewright/domain remains
+// the last-resort fallback when both this table and the remote fetch miss.
+model ModelPrice {
+  id           String   @id @default(cuid())
+  // Model identifier as configured/used (e.g. "claude-sonnet-4-6"). Cost
+  // lookup is exact-then-longest-prefix, so dated/"[1m]" variants resolve.
+  model        String   @unique
+  // USD per 1M tokens (matches @codewright/domain ModelPricing).
+  inputPer1M   Float
+  outputPer1M  Float
+  // Where the row came from: "litellm" (remote fetch) etc. Null = unknown.
+  source       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  @@map("retrospective")
+  @@map("model_price")
 }
