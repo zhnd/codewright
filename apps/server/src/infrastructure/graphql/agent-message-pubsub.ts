@@ -1,5 +1,9 @@
 import { Client } from 'pg';
 import { log } from '../../logger.js';
+import {
+  debouncedSubscription,
+  type Subscriber,
+} from './debounced-subscription.js';
 
 /**
  * Postgres LISTEN-backed pub/sub for the agent message log data plane.
@@ -14,8 +18,6 @@ import { log } from '../../logger.js';
  */
 const CHANNEL = 'codewright_agent_messages';
 const DEBOUNCE_MS = Number(process.env.AGENT_MESSAGE_DEBOUNCE_MS ?? 80);
-
-type Subscriber = () => void;
 
 class AgentMessagePubSub {
   private ready: Promise<void> | null = null;
@@ -58,58 +60,12 @@ class AgentMessagePubSub {
 
   /**
    * Yields each time new messages for `taskId` arrive, micro-batched at
-   * {@link DEBOUNCE_MS} with a leading edge. A `pending` flag bridges the
-   * window between yields so a NOTIFY mid-processing isn't dropped.
+   * {@link DEBOUNCE_MS}. Subscribers receive a signal only; the subscription
+   * then pulls rows with `cursor > lastSeen`.
    */
   async *iterate(taskId: string, signal?: AbortSignal): AsyncIterable<void> {
     await this.ensureReady();
-
-    let resolveNext: (() => void) | null = null;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let pending = false;
-    let closed = false;
-
-    const fire: Subscriber = () => {
-      if (closed || timer) return;
-      timer = setTimeout(() => {
-        timer = null;
-        pending = true;
-        const r = resolveNext;
-        resolveNext = null;
-        r?.();
-      }, DEBOUNCE_MS);
-    };
-
-    let set = this.subscribers.get(taskId);
-    if (!set) {
-      set = new Set();
-      this.subscribers.set(taskId, set);
-    }
-    set.add(fire);
-
-    const cleanup = () => {
-      closed = true;
-      set?.delete(fire);
-      if (set?.size === 0) this.subscribers.delete(taskId);
-      if (timer) clearTimeout(timer);
-      resolveNext?.();
-    };
-    signal?.addEventListener('abort', cleanup);
-
-    try {
-      while (!closed && !(signal?.aborted ?? false)) {
-        if (!pending) {
-          await new Promise<void>((r) => {
-            resolveNext = r;
-          });
-        }
-        if (closed) break;
-        pending = false;
-        yield;
-      }
-    } finally {
-      cleanup();
-    }
+    yield* debouncedSubscription(this.subscribers, taskId, DEBOUNCE_MS, signal);
   }
 }
 
