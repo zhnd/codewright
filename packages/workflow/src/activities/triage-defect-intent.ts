@@ -13,11 +13,15 @@ import {
  * concurrency slot. ~6 turns typical.
  */
 export async function triageDefectIntentActivity(
+  taskEventId: string,
   defectDescription: string,
   feedback?: string
 ): Promise<AgentActivityResult<DefectIntent>> {
   log.info({ hasFeedback: !!feedback }, 'Starting defect-intent triage');
-  return runAgentInActivity('analysis', 'triageDefectIntent', (observer) =>
-    triageDefectIntent(defectDescription, feedback, observer)
+  return runAgentInActivity(
+    'analysis',
+    'triageDefectIntent',
+    taskEventId,
+    (observer) => triageDefectIntent(defectDescription, feedback, observer)
   );
 }

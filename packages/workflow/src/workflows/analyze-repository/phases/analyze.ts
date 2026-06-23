@@ -1,4 +1,5 @@
 import type { AnalyzeRepositoryInput } from '@codewright/domain';
+import { sumStageCost } from '../../../utils/stage-cost.js';
 import type { PhaseContext } from '../index.js';
 import { main, sandboxAgent } from '../proxies.js';
 import { buildAnalyzeStageInput } from '../transformer.js';
@@ -20,12 +21,7 @@ export async function runAnalyze(
   });
   const eventId = startedStage!.eventId;
 
-  const out = await sandboxAgent.analyzeCodeActivity(ctx.sandboxState);
-  await main.persistAgentInvocationActivity({
-    taskEventId: eventId,
-    capturedTrace: out.capturedTrace,
-    errorText: out.errorText,
-  });
+  const out = await sandboxAgent.analyzeCodeActivity(eventId, ctx.sandboxState);
   if (out.status !== 'SUCCESS' || !out.result) {
     await main.updateTaskActivity({
       taskId: ctx.taskId,
@@ -33,6 +29,7 @@ export async function runAnalyze(
         eventId,
         status: 'FAILED',
         error: out.errorText ?? 'analyzeCode failed',
+        cost: sumStageCost(out.cost),
       },
     });
     throw new Error(out.errorText ?? 'analyzeCode failed');
@@ -40,6 +37,11 @@ export async function runAnalyze(
 
   await main.updateTaskActivity({
     taskId: ctx.taskId,
-    updateStage: { eventId, status: 'COMPLETED', output: out.result },
+    updateStage: {
+      eventId,
+      status: 'COMPLETED',
+      output: out.result,
+      cost: sumStageCost(out.cost),
+    },
   });
 }

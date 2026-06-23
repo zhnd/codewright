@@ -12,6 +12,7 @@ import {
 } from '../utils/agent-activity.js';
 
 export async function analyzeDefectActivity(
+  taskEventId: string,
   state: SandboxState,
   defectDescription: string,
   intent: DefectIntent | undefined,
@@ -30,6 +31,7 @@ export async function analyzeDefectActivity(
     state,
     'analysis',
     'analyzeDefect',
+    taskEventId,
     (sandbox, observer) =>
       analyzeDefect(
         sandbox,
@@ -44,7 +46,6 @@ export async function analyzeDefectActivity(
     log.info(
       {
         rootCause: out.result.rootCause.slice(0, 100),
-        eventCount: out.observation.events.length,
         candidates: out.result.candidateRootCauses?.length ?? 0,
         strategies: out.result.consideredStrategies?.length ?? 0,
       },

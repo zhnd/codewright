@@ -1,4 +1,5 @@
 import type {
+  AgentCost,
   CriticReview,
   DefectAnalysis,
   ReproductionOracle,
@@ -11,6 +12,7 @@ import {
   type AttemptMemo,
   buildRetryFeedback,
 } from '../../../utils/retry-feedback.js';
+import { sumStageCost } from '../../../utils/stage-cost.js';
 import {
   isAutoApprovable,
   recommendedSampleCount,
@@ -87,6 +89,9 @@ export async function runImplement(
     const sampleSummaries: SampleSummary[] = [];
     const filterCheckList: FilterCheckEntry[] = [];
     const criticReviewList: CriticReviewEntry[] = [];
+    // Accumulate every agent run's cost this round (implement + critic
+    // across all samples); written onto the IMPLEMENT stage's TaskEvent.
+    const roundCosts: AgentCost[] = [];
 
     const samplesThisRound = recommendedSampleCount(
       analysis,
@@ -143,17 +148,14 @@ export async function runImplement(
       );
 
       const implementOut = await sandboxAgent.implementResolutionActivity(
+        implementEventId,
         ctx.sandboxState,
         input.defectDescription,
         analysis,
         oracle,
         sampleFeedback || undefined
       );
-      await main.persistAgentInvocationActivity({
-        taskEventId: implementEventId,
-        capturedTrace: implementOut.capturedTrace,
-        errorText: implementOut.errorText,
-      });
+      if (implementOut.cost) roundCosts.push(implementOut.cost);
       if (implementOut.status !== 'SUCCESS' || !implementOut.result) {
         // One sample failing is not terminal — log a memo and move on
         // to the next sample. The stage stays open until all samples
@@ -243,17 +245,14 @@ export async function runImplement(
       // as a tiebreak among execution-eligible candidates. It no longer
       // gates a patch the tests already proved correct.
       const criticOutcome = await sandboxAgent.criticResolutionActivity(
+        implementEventId,
         ctx.sandboxState,
         input.defectDescription,
         analysis,
         oracle,
         result
       );
-      await main.persistAgentInvocationActivity({
-        taskEventId: implementEventId,
-        capturedTrace: criticOutcome.capturedTrace,
-        errorText: criticOutcome.errorText,
-      });
+      if (criticOutcome.cost) roundCosts.push(criticOutcome.cost);
       // A critic crash must not drop a test-passing patch — synthesize a
       // neutral review so the candidate still competes.
       const criticReview: CriticReview =
@@ -303,7 +302,12 @@ export async function runImplement(
       const error = `No sample passed filter + critic after ${samplesThisRound} attempts`;
       await main.updateTaskActivity({
         taskId: ctx.taskId,
-        updateStage: { eventId: implementEventId, status: 'FAILED', error },
+        updateStage: {
+          eventId: implementEventId,
+          status: 'FAILED',
+          error,
+          cost: sumStageCost(...roundCosts),
+        },
       });
       throw new Error(error);
     }
@@ -332,6 +336,7 @@ export async function runImplement(
           samples: sampleSummaries,
           selectedSampleId: candidates.length,
         },
+        cost: sumStageCost(...roundCosts),
       },
       startStage: {
         stageKey: 'FILTER',

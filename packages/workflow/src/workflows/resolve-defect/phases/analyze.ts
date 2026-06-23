@@ -1,4 +1,5 @@
 import type { DefectAnalysis, ResolveDefectInput } from '@codewright/domain';
+import { sumStageCost } from '../../../utils/stage-cost.js';
 import { shouldAutoApproveAnalysis } from '../../../utils/trivial-gate.js';
 import { MAX_ANALYSIS_ROUNDS } from '../constants.js';
 import type { PhaseContext } from '../index.js';
@@ -58,14 +59,10 @@ export async function runAnalyze(
 
     // ── Sub-agent 1: triage intent (text-only, cheap) ────────────────
     const triageOut = await mainAgent.triageDefectIntentActivity(
+      eventId,
       input.defectDescription,
       feedback
     );
-    await main.persistAgentInvocationActivity({
-      taskEventId: eventId,
-      capturedTrace: triageOut.capturedTrace,
-      errorText: triageOut.errorText,
-    });
     if (triageOut.status !== 'SUCCESS' || !triageOut.result) {
       await main.updateTaskActivity({
         taskId: ctx.taskId,
@@ -73,6 +70,7 @@ export async function runAnalyze(
           eventId,
           status: 'FAILED',
           error: triageOut.errorText ?? 'triageDefectIntent failed',
+          cost: sumStageCost(triageOut.cost),
         },
       });
       throw new Error(triageOut.errorText ?? 'triageDefectIntent failed');
@@ -81,17 +79,13 @@ export async function runAnalyze(
 
     // ── Sub-agent 2: analyze with intent + repoMap ───────────────────
     const analyzeOut = await sandboxAgent.analyzeDefectActivity(
+      eventId,
       ctx.sandboxState,
       input.defectDescription,
       intent,
       repoNavigation ?? undefined,
       feedback
     );
-    await main.persistAgentInvocationActivity({
-      taskEventId: eventId,
-      capturedTrace: analyzeOut.capturedTrace,
-      errorText: analyzeOut.errorText,
-    });
     if (analyzeOut.status !== 'SUCCESS' || !analyzeOut.result) {
       await main.updateTaskActivity({
         taskId: ctx.taskId,
@@ -99,6 +93,8 @@ export async function runAnalyze(
           eventId,
           status: 'FAILED',
           error: analyzeOut.errorText ?? 'analyzeDefect failed',
+          // triage succeeded, analyze failed — bill both runs.
+          cost: sumStageCost(triageOut.cost, analyzeOut.cost),
         },
       });
       throw new Error(analyzeOut.errorText ?? 'analyzeDefect failed');
@@ -107,6 +103,8 @@ export async function runAnalyze(
     // (HITL UI and PR body don't need a second lookup). The schema
     // field is optional and designed for this composition.
     const analysis: DefectAnalysis = { ...analyzeOut.result, intent };
+    // Stage cost = triage + analyze agent runs.
+    const stageCost = sumStageCost(triageOut.cost, analyzeOut.cost);
 
     // Trivial auto-approve gate: skip HITL for defects the agent
     // self-classified as trivial when the env flag is on.
@@ -117,7 +115,12 @@ export async function runAnalyze(
     if (autoAnalyze.autoApprove) {
       await main.updateTaskActivity({
         taskId: ctx.taskId,
-        updateStage: { eventId, status: 'COMPLETED', output: analysis },
+        updateStage: {
+          eventId,
+          status: 'COMPLETED',
+          output: analysis,
+          cost: stageCost,
+        },
       });
       return analysis;
     }
@@ -126,7 +129,12 @@ export async function runAnalyze(
     // candidateRootCauses + consideredStrategies in one document.
     await main.updateTaskActivity({
       taskId: ctx.taskId,
-      updateStage: { eventId, status: 'AWAITING', output: analysis },
+      updateStage: {
+        eventId,
+        status: 'AWAITING',
+        output: analysis,
+        cost: stageCost,
+      },
     });
     await ctx.reviewGate.resetAndWait();
     const decision = ctx.reviewGate.consume();

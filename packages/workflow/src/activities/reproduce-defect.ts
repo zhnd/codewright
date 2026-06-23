@@ -8,6 +8,7 @@ import {
 } from '../utils/agent-activity.js';
 
 export async function reproduceDefectActivity(
+  taskEventId: string,
   state: SandboxState,
   analysis: DefectAnalysis
 ): Promise<AgentActivityResult<ReproductionOracle>> {
@@ -23,6 +24,7 @@ export async function reproduceDefectActivity(
     state,
     'reproduce',
     'reproduceDefect',
+    taskEventId,
     (sandbox, observer) => reproduceDefect(sandbox, analysis, observer)
   );
   if (out.result) {
@@ -30,7 +32,6 @@ export async function reproduceDefectActivity(
       {
         mode: out.result.mode,
         confirmedFailing: out.result.confirmedFailing,
-        eventCount: out.observation.events.length,
       },
       'Reproduction activity complete'
     );

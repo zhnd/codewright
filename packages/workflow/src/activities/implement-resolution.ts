@@ -12,6 +12,7 @@ import {
 } from '../utils/agent-activity.js';
 
 export async function implementResolutionActivity(
+  taskEventId: string,
   state: SandboxState,
   defectDescription: string,
   analysis: DefectAnalysis,
@@ -30,6 +31,7 @@ export async function implementResolutionActivity(
     state,
     'implement',
     'implementResolution',
+    taskEventId,
     (sandbox, observer) =>
       implementResolution(
         sandbox,
@@ -45,7 +47,6 @@ export async function implementResolutionActivity(
       {
         branch: out.result.branch,
         testsPassed: out.result.testsPassed,
-        eventCount: out.observation.events.length,
       },
       'Resolution implementation complete'
     );

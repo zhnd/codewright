@@ -13,6 +13,7 @@ import {
 } from '../utils/agent-activity.js';
 
 export async function criticResolutionActivity(
+  taskEventId: string,
   state: SandboxState,
   defectDescription: string,
   analysis: DefectAnalysis,
@@ -30,6 +31,7 @@ export async function criticResolutionActivity(
     state,
     'critic',
     'criticResolution',
+    taskEventId,
     (sandbox, observer) =>
       criticResolution(
         sandbox,
