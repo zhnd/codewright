@@ -1,3 +1,4 @@
+import { RotateCcw } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { DEFAULT_STAGES } from './constants';
 import type { StageStatus, StageTrackProps } from './types';
@@ -24,6 +25,7 @@ export function StageTrack({
   onSelect,
   list = DEFAULT_STAGES,
   timings = {},
+  retries = {},
 }: StageTrackProps) {
   return (
     <ol className="m-0 list-none p-0">
@@ -61,6 +63,15 @@ export function StageTrack({
               >
                 {s.label}
               </span>
+              {(retries[s.key] ?? 0) > 0 && (
+                <span
+                  className="inline-flex items-center gap-0.5 font-mono text-[10px] text-[color:var(--warn)]"
+                  title={`Retried ${retries[s.key]}×`}
+                >
+                  <RotateCcw className="h-2.5 w-2.5" />
+                  {retries[s.key]}
+                </span>
+              )}
               <span className="font-mono text-[10.5px] text-foreground-subtle">
                 {timings[s.key] ?? ''}
               </span>

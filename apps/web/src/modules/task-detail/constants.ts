@@ -22,7 +22,15 @@ export const STAGE_ORDER: StageKey[] = [
 
 export const DETAIL_TABS: [DetailTab, string][] = [
   ['overview', 'Overview'],
-  ['visual', 'Visual'],
-  ['events', 'Events'],
-  ['trace', 'Trace'],
+  ['input', 'Input'],
+  ['activity', 'Activity'],
+  ['timeline', 'Timeline'],
 ];
+
+/**
+ * Shared content metrics for every detail tab. Keeping the scroll padding and
+ * the centered max-width identical across Overview / Activity / Visual stops
+ * the content box from changing width when switching tabs.
+ */
+export const TAB_SCROLL_PADDING = 'px-4 py-5 sm:px-6 lg:px-8 lg:py-6';
+export const TAB_CONTENT_WIDTH = 'mx-auto w-full max-w-260';

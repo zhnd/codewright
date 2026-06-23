@@ -13,7 +13,6 @@ export function ReproduceBody({ oracle }: { oracle: unknown }) {
     <div>
       <StageHeader
         title="Reproduction"
-        stage="reproduce"
         chips={
           [
             confirmed ? (

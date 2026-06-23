@@ -1,21 +1,36 @@
 'use client';
 
 import { useQuery } from '@apollo/client/react';
-import { useMemo, useState } from 'react';
-import { TASKS_POLL_INTERVAL_MS } from './constants';
-import { GET_TASKS } from './graphql';
-import { countByStatus, filterTasks } from './libs';
-import type { TaskListRow, TaskListStatusFilter } from './types';
+import { useEffect, useMemo, useState } from 'react';
+import { GET_TASKS, TASKS_CHANGED } from './graphql';
+import { countByStatus, filterTasks, toListRow } from './libs';
+import type { ApiListTask, TaskListStatusFilter } from './types';
 
 /**
- * Tasks-list data layer. Pulls all tasks (poll), exposes the active
- * status filter, derived counts, filtered rows, and a router-aware
+ * Tasks-list data layer. Loads all tasks and live-refreshes them via the
+ * `tasksChanged` subscription (replaces the old 5s poll), then exposes the
+ * active status filter, derived counts, filtered rows, and a router-aware
  * `openTask` callback.
  */
 export function useService() {
-  const { data, loading } = useQuery<{ tasks: TaskListRow[] }>(GET_TASKS, {
-    pollInterval: TASKS_POLL_INTERVAL_MS,
-  });
+  const { data, loading, subscribeToMore } = useQuery<{ tasks: ApiListTask[] }>(
+    GET_TASKS
+  );
+
+  useEffect(() => {
+    const unsubscribe = subscribeToMore({
+      document: TASKS_CHANGED,
+      updateQuery: (prev, { subscriptionData }) => {
+        const tasks = (
+          subscriptionData.data as { tasksChanged?: ApiListTask[] } | undefined
+        )?.tasksChanged;
+        return tasks
+          ? { tasks }
+          : { tasks: (prev.tasks ?? []) as ApiListTask[] };
+      },
+    });
+    return unsubscribe;
+  }, [subscribeToMore]);
   const [status, setStatus] = useState<TaskListStatusFilter>(() => {
     if (typeof window === 'undefined') return 'all';
     const initialStatus = new URLSearchParams(window.location.search).get(
@@ -30,7 +45,7 @@ export function useService() {
   });
   const [query, setQuery] = useState('');
 
-  const all: TaskListRow[] = data?.tasks ?? [];
+  const all = useMemo(() => (data?.tasks ?? []).map(toListRow), [data?.tasks]);
 
   const counts = useMemo(() => countByStatus(all), [all]);
   const rows = useMemo(

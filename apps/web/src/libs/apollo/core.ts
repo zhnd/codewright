@@ -90,7 +90,36 @@ export function makeClient() {
         );
 
   return new ApolloClient({
-    cache: new InMemoryCache(),
+    cache: new InMemoryCache({
+      typePolicies: {
+        AgentMessageLog: { keyFields: ['id'] },
+        Query: {
+          fields: {
+            // Append-only agent message log: bucket by taskId, merge incoming
+            // pages/stream batches by cursor (dedupe + keep ascending).
+            // A flat single-level list with stable ids sidesteps the
+            // nested-normalization staleness that forces the task-detail
+            // refetch pattern — here we can safely append.
+            agentMessages: {
+              keyArgs: ['taskId'],
+              // biome-ignore lint/suspicious/noExplicitAny: Apollo cache refs are opaque
+              merge(existing: any[] = [], incoming: any[] = [], { readField }) {
+                // biome-ignore lint/suspicious/noExplicitAny: Apollo cache refs are opaque
+                const byCursor = new Map<string, any>();
+                for (const m of [...existing, ...incoming]) {
+                  byCursor.set(String(readField('cursor', m)), m);
+                }
+                return [...byCursor.values()].sort((a, b) => {
+                  const ca = BigInt(String(readField('cursor', a)));
+                  const cb = BigInt(String(readField('cursor', b)));
+                  return ca < cb ? -1 : ca > cb ? 1 : 0;
+                });
+              },
+            },
+          },
+        },
+      },
+    }),
     link: errorLink.concat(transport),
   });
 }

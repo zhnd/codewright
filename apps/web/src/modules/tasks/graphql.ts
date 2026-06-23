@@ -64,142 +64,110 @@ export const TASK_DETAIL_FIELDS = gql`
       startedAt
       endedAt
       durationMs
-      agentInvocations {
-        id
-        agentName
-        model
-        status
-        errorText
-        spanId
-        startedAt
-        endedAt
-        durationMs
-        totalCostUsd
-        inputTokens
-        outputTokens
-        turns {
-          id
-          turnIndex
-          role
-          textContent
-          textTruncatedAt
-          toolUseCount
-          inputTokens
-          outputTokens
-          startedAt
-        }
-        toolCalls {
-          id
-          agentTurnId
-          toolUseId
-          name
-          input
-          output
-          outputTruncatedAt
-          success
-          errorText
-          spanId
-          startedAt
-          endedAt
-          durationMs
-        }
-      }
+      costUsd
+      inputTokens
+      outputTokens
+      model
     }
-    executions {
-      id
-      workflowKind
-      workflowVersion
-      traceId
-      temporalWorkflowId
+  }
+  ${TASK_FIELDS}
+`;
+
+// Control-plane (status) fragment for the live subscription. Deliberately
+// excludes the high-churn events→invocations→turns/toolCalls subtree: the
+// detail view refetches GET_TASK on each tick for the structured/trace
+// data, and the live agent message log flows on its own data-plane subscription.
+export const TASK_STATUS_FIELDS = gql`
+  fragment TaskStatusFields on Task {
+    ...TaskFields
+    stages {
+      key
       status
-      startedAt
-      endedAt
-      durationMs
-      stages {
-        id
-        stageName
-        order
+      attempts {
+        attemptNumber
         status
-        spanId
-        parentSpanId
         startedAt
         endedAt
         durationMs
-        attempts {
-          id
-          attemptNumber
-          triggerKind
-          triggerPayload
-          spanId
-          status
-          startedAt
-          endedAt
-          durationMs
-          invocations {
-            id
-            agentName
-            model
-            status
-            errorText
-            spanId
-            startedAt
-            endedAt
-            durationMs
-            totalCostUsd
-            inputTokens
-            outputTokens
-            turns {
-              id
-              turnIndex
-              role
-              textContent
-              textTruncatedAt
-              toolUseCount
-              inputTokens
-              outputTokens
-              startedAt
-            }
-            toolCalls {
-              id
-              agentTurnId
-              toolUseId
-              name
-              input
-              output
-              outputTruncatedAt
-              success
-              errorText
-              spanId
-              startedAt
-              endedAt
-              durationMs
-            }
-          }
+        review {
+          action
+          feedback
+          decidedBy
+          decidedAt
         }
-      }
-      retrospective {
-        id
-        summary
-        bottlenecks
-        recommendations
-        riskFactors
-        stats
-        model
-        costUsd
-        createdAt
       }
     }
   }
   ${TASK_FIELDS}
 `;
 
+// Append-only agent message log row (data plane). Mirrors AgentMessageLog.
+export const AGENT_MESSAGE_FIELDS = gql`
+  fragment AgentMessageFields on AgentMessageLog {
+    id
+    cursor
+    taskEventId
+    taskId
+    seq
+    kind
+    role
+    textContent
+    textTruncatedAt
+    toolUseId
+    toolName
+    payload
+    payloadTruncatedAt
+    createdAt
+  }
+`;
+
+// Task-list row: status + pipeline + rolled-up duration/cost. Kept lean
+// (no events/attempts subtree) so the list query stays cheap.
+export const TASK_LIST_FIELDS = gql`
+  fragment TaskListFields on Task {
+    id
+    type
+    status
+    error
+    currentStageKey
+    awaiting {
+      stageKey
+      attemptNumber
+    }
+    project {
+      id
+      name
+    }
+    stages {
+      key
+      status
+    }
+    durationMs
+    totalCostUsd
+    createdAt
+    startedAt
+    completedAt
+  }
+`;
+
 export const GET_TASKS = gql`
   query GetTasks($status: String, $projectId: String) {
     tasks(status: $status, projectId: $projectId) {
-      ...TaskFields
+      ...TaskListFields
     }
   }
-  ${TASK_FIELDS}
+  ${TASK_LIST_FIELDS}
+`;
+
+// Live tasks-list refresh (replaces 5s polling). Returns the full list on
+// any of the user's tasks changing.
+export const TASKS_CHANGED = gql`
+  subscription TasksChanged {
+    tasksChanged {
+      ...TaskListFields
+    }
+  }
+  ${TASK_LIST_FIELDS}
 `;
 
 export const GET_TASK = gql`
@@ -214,10 +182,41 @@ export const GET_TASK = gql`
 export const TASK_UPDATED = gql`
   subscription TaskUpdated($id: String!) {
     taskUpdated(id: $id) {
-      ...TaskDetailFields
+      ...TaskStatusFields
     }
   }
-  ${TASK_DETAIL_FIELDS}
+  ${TASK_STATUS_FIELDS}
+`;
+
+// Message log paging. No cursor → newest page (tail); `beforeCursor` →
+// older page ("Load earlier"); `afterCursor` → newer rows (gap-fill).
+export const GET_AGENT_MESSAGES = gql`
+  query GetAgentMessages(
+    $taskId: String!
+    $afterCursor: String
+    $beforeCursor: String
+    $limit: Int
+  ) {
+    agentMessages(
+      taskId: $taskId
+      afterCursor: $afterCursor
+      beforeCursor: $beforeCursor
+      limit: $limit
+    ) {
+      ...AgentMessageFields
+    }
+  }
+  ${AGENT_MESSAGE_FIELDS}
+`;
+
+// Live agent message log stream — pushes new rows after a cursor.
+export const AGENT_MESSAGES_APPENDED = gql`
+  subscription AgentMessagesAppended($taskId: String!, $afterCursor: String) {
+    agentMessagesAppended(taskId: $taskId, afterCursor: $afterCursor) {
+      ...AgentMessageFields
+    }
+  }
+  ${AGENT_MESSAGE_FIELDS}
 `;
 
 export const RESOLVE_DEFECT = gql`
@@ -254,6 +253,15 @@ export const RETRY_TASK = gql`
   mutation RetryTask($taskId: String!) {
     retryTask(taskId: $taskId) {
       id
+    }
+  }
+`;
+
+export const CANCEL_TASK = gql`
+  mutation CancelTask($taskId: String!) {
+    cancelTask(taskId: $taskId) {
+      id
+      status
     }
   }
 `;

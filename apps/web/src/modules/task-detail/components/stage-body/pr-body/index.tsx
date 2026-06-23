@@ -18,7 +18,6 @@ export function PrBody({ pr, detail }: { pr: unknown; detail: TaskDetail }) {
       <div>
         <StageHeader
           title="Pull request"
-          stage="pr"
           chips={[
             <Chip key="p" dot="var(--foreground-subtle)">
               Pending approval
@@ -36,7 +35,6 @@ export function PrBody({ pr, detail }: { pr: unknown; detail: TaskDetail }) {
     <div>
       <StageHeader
         title="Pull request"
-        stage="pr"
         chips={
           [
             <Chip key="o" dot="var(--ok)" strong>

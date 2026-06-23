@@ -49,7 +49,6 @@ export function ImplementBody({
     <div>
       <StageHeader
         title="Implementation"
-        stage="implement"
         chips={
           [
             <Chip key="n" mono>

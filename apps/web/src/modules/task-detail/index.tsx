@@ -5,16 +5,15 @@ import { StatusChip } from '@/components/common/status-chip';
 import { Tally } from '@/components/common/tally';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageHeader } from '@/components/layout/page-header';
+import { ActivityView } from './components/activity-view';
 import { DetailTabsBar } from './components/detail-tabs-bar';
-import { EventsView } from './components/events-view';
-import { FailurePanel } from './components/failure-panel';
+import { HeaderActions } from './components/header-actions';
 import { HeroStat } from './components/hero-stat';
-import { OverflowMenu } from './components/overflow-menu';
-import { TraceView } from './components/trace-view';
+import { TimelineView } from './components/timeline-view';
 import { AnalyzeRepositoryView } from './components/views/analyze-repository-view';
+import { InputView } from './components/views/input-view';
 import { ResolveDefectView } from './components/views/resolve-defect-view';
-import { VisualView } from './components/visual-view';
-import { formatTokens } from './libs';
+import { TAB_CONTENT_WIDTH, TAB_SCROLL_PADDING } from './constants';
 import { useService } from './use-service';
 
 interface TaskDetailProps {
@@ -37,6 +36,8 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
     reviewing,
     retry,
     retrying,
+    cancel,
+    canceling,
   } = useService({ taskId });
 
   if (loading && !detail) {
@@ -67,19 +68,36 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
     );
   }
 
+  // Breadcrumb leaf: the humanized workflow type (e.g. "Resolve defect").
+  // The full task id lives in the hero for copying.
+  const workflowLabel = detail.task.workflow
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/^./, (c) => c.toUpperCase());
+
   return (
     <AppShell scroll={false}>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <PageHeader
           segments={[
             { label: 'Tasks', href: '/tasks' },
-            { label: taskId.length > 12 ? `tsk_${taskId.slice(-6)}` : taskId },
+            { label: workflowLabel },
           ]}
-          actions={<OverflowMenu />}
+          actions={
+            <HeaderActions
+              taskId={taskId}
+              status={detail.task.status}
+              prUrl={detail.summary.prUrl}
+              onCancel={cancel}
+              canceling={canceling}
+              onRetry={retry}
+              retrying={retrying}
+            />
+          }
         />
 
         {/* Hero */}
-        <div className="border-b border-border-faint bg-card px-4 pt-5 pb-3 sm:px-6 lg:px-7">
+        <div className="shrink-0 border-b border-border-faint bg-card px-4 pt-5 pb-3 sm:px-6 lg:px-7">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusChip status={detail.task.status.toUpperCase()} />
             <span className="font-mono text-[10.5px] tabular-nums text-foreground-subtle">
@@ -94,52 +112,31 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
           </div>
           <div className="flex items-start justify-between gap-5">
             <div className="min-w-0 flex-1">
-              <h1 className="m-0 max-w-200 text-[22px] font-semibold leading-[1.2] tracking-normal text-foreground">
-                {detail.summary.description || detail.task.title}
+              <h1 className="m-0 text-[15px] font-semibold leading-[1.35] tracking-normal text-foreground">
+                <button
+                  type="button"
+                  onClick={() => setTab('input')}
+                  title="View full request"
+                  className="line-clamp-1 cursor-pointer border-none bg-transparent p-0 text-left text-inherit hover:underline"
+                >
+                  {detail.summary.description || detail.task.title}
+                </button>
               </h1>
-              {(detail.task.projectName || detail.task.model) && (
-                <div className="mt-1.5 flex flex-wrap items-center gap-2 font-mono text-[10.5px] uppercase tracking-[0.04em] text-foreground-subtle">
-                  {detail.task.projectName && (
-                    <span className="text-foreground-muted">
-                      {detail.task.projectName}
-                    </span>
-                  )}
-                  {detail.task.model && (
-                    <>
-                      <span className="text-foreground-faint">·</span>
-                      <span>{detail.task.model}</span>
-                    </>
-                  )}
-                </div>
-              )}
             </div>
             <div className="hidden items-stretch gap-0 rounded-sm border border-border bg-card md:flex">
               <HeroStat label="DURATION" value={detail.task.duration} />
               <span className="my-2 w-px bg-border-faint" />
               <HeroStat label="COST" value={detail.task.cost} />
-              <span className="my-2 w-px bg-border-faint" />
-              <HeroStat
-                label="TOKENS"
-                value={formatTokens(detail.summary.totalTokens)}
-              />
             </div>
           </div>
-          {detail.task.status === 'failed' && detail.task.error && (
-            <FailurePanel
-              message={detail.task.error}
-              occurredAt={detail.task.completedAt}
-              onRetry={retry}
-              retryPending={retrying}
-            />
-          )}
           <Tally className="mt-3" />
         </div>
 
-        <div className="overflow-x-auto border-b border-border bg-card px-4 sm:px-6 lg:px-7">
+        <div className="shrink-0 overflow-x-auto border-b border-border bg-card px-4 sm:px-6 lg:px-7">
           <DetailTabsBar tab={tab} onChange={setTab} />
         </div>
 
-        {/* Body — overview is per-task-type; visual/events/trace are shared */}
+        {/* Body — overview is per-task-type; input + activity + visual are shared */}
         {tab === 'overview' &&
           (detail.task.workflow === 'ANALYZE_REPOSITORY' ? (
             <AnalyzeRepositoryView
@@ -160,26 +157,37 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
             />
           ))}
 
-        {tab === 'visual' && (
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-10 lg:py-6">
-            <div className="mx-auto max-w-300">
-              <VisualView stageTimings={detail.stageTimings} />
+        {tab === 'input' && (
+          <div
+            className={`min-h-0 flex-1 overflow-y-auto ${TAB_SCROLL_PADDING}`}
+          >
+            <div className={TAB_CONTENT_WIDTH}>
+              <InputView detail={detail} />
             </div>
           </div>
         )}
 
-        {tab === 'events' && (
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-10 lg:py-6">
-            <div className="mx-auto max-w-240">
-              <EventsView entries={detail.activityLog} />
-            </div>
-          </div>
+        {tab === 'activity' && (
+          <ActivityView
+            taskId={taskId}
+            isRunning={detail.task.status === 'running'}
+            workflow={detail.task.workflow}
+            stages={detail.stageTimings}
+          />
         )}
 
-        {tab === 'trace' && (
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-10 lg:py-6">
-            <div className="mx-auto max-w-300">
-              <TraceView events={detail.eventInvocations} />
+        {tab === 'timeline' && (
+          <div
+            className={`min-h-0 flex-1 overflow-y-auto ${TAB_SCROLL_PADDING}`}
+          >
+            <div className={TAB_CONTENT_WIDTH}>
+              <TimelineView
+                stageTimings={detail.stageTimings}
+                onSelectStage={(stage) => {
+                  setSelectedStage(stage);
+                  setTab('overview');
+                }}
+              />
             </div>
           </div>
         )}

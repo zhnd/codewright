@@ -31,7 +31,6 @@ export function AnalyzeBody({
     <div>
       <StageHeader
         title="Root cause analysis"
-        stage="analyze"
         chips={[
           <RiskBadge key="r" risk={risk} />,
           <Chip key="s" dot="var(--ok)">

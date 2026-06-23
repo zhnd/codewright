@@ -7,6 +7,8 @@ interface FailurePanelProps {
   message: string;
   /** ISO timestamp of when the failure landed. */
   occurredAt: string | null;
+  /** Heading shown in the panel. Defaults to the task-level "Task failed". */
+  title?: string;
   /** Optional retry handler — when present, renders a "Retry" button. */
   onRetry?: () => void;
   /** Disable the retry button while the mutation is in flight. */
@@ -24,6 +26,7 @@ const COLLAPSE_THRESHOLD = 280;
 export function FailurePanel({
   message,
   occurredAt,
+  title = 'Task failed',
   onRetry,
   retryPending,
 }: FailurePanelProps) {
@@ -45,7 +48,7 @@ export function FailurePanel({
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 text-[12px] font-semibold text-danger">
-            Task failed
+            {title}
             {occurredAt && (
               <span className="font-normal text-foreground-subtle">
                 · {new Date(occurredAt).toLocaleString()}

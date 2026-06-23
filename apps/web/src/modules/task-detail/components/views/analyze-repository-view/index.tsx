@@ -1,8 +1,16 @@
 import { Chip } from '@/components/common/chip';
 import { Markdown } from '@/components/common/markdown';
+import { TAB_CONTENT_WIDTH, TAB_SCROLL_PADDING } from '../../../constants';
+import { formatDurationMs } from '../../../libs';
 import type { StageData, TaskDetail } from '../../../types';
 import { latestOutput } from '../../stage-body/libs';
-import { Section, StageHeader } from '../../stage-body/parts';
+import {
+  Section,
+  StageFailure,
+  StageHeader,
+  StageRunning,
+  StageStatsContext,
+} from '../../stage-body/parts';
 
 interface AnalysisResultShape {
   summary?: unknown;
@@ -34,7 +42,7 @@ interface AnalyzeRepositoryViewProps {
  * workflow only emits one stage (ANALYSIS).
  */
 export function AnalyzeRepositoryView({
-  detail: _detail,
+  detail,
   analyzeStage,
 }: AnalyzeRepositoryViewProps) {
   const status = analyzeStage.status;
@@ -42,19 +50,21 @@ export function AnalyzeRepositoryView({
   // `done` is the StageStatus shown for COMPLETED on the wire; see
   // normalizeStatus in task-detail/use-service.ts.
   const isCompleted = status === 'done';
-  const isFailed = status === 'failed';
-  const placeholderMessage =
-    status === 'pending'
-      ? 'Waiting to start.'
-      : status === 'running'
-        ? 'Analyzing repository…'
-        : status === 'awaiting'
-          ? 'Awaiting human review.'
-          : status === 'skipped'
-            ? 'Skipped.'
-            : isFailed
-              ? `Latest attempt failed${latest?.error ? `: ${latest.error}` : '.'}`
-              : null;
+
+  // Per-stage agent stats strip (model + tokens + cost + duration), shown
+  // under the heading via the shared StageHeader.
+  const analyzeDurationMs = analyzeStage.attempts.reduce(
+    (acc, a) => acc + (a.durationMs ?? 0),
+    0
+  );
+  const stageCost = detail.stageStats.analyze;
+  const stripValue = stageCost
+    ? {
+        ...stageCost,
+        duration:
+          analyzeDurationMs > 0 ? formatDurationMs(analyzeDurationMs) : null,
+      }
+    : null;
 
   const stageData = analyzeStage
     ? {
@@ -89,12 +99,36 @@ export function AnalyzeRepositoryView({
     structure ||
     recommendations.length > 0;
 
-  return (
-    <div className="overflow-y-auto px-4 py-5 sm:px-6 lg:px-9 lg:py-7">
-      <div className="mx-auto max-w-220 pb-12">
+  const placeholderMessage =
+    status === 'pending'
+      ? 'Waiting to start.'
+      : status === 'awaiting'
+        ? 'Awaiting human review.'
+        : status === 'skipped'
+          ? 'Skipped.'
+          : null;
+
+  // Running / failed reuse the shared stage-state components so this
+  // single-stage view matches the multi-stage resolve-defect Overview.
+  let content: React.ReactNode;
+  if (status === 'running') {
+    content = (
+      <StageRunning stage="analyze" attempt={latest?.attemptNumber ?? 1} />
+    );
+  } else if (status === 'failed') {
+    content = (
+      <StageFailure
+        stage="analyze"
+        error={latest?.error ?? null}
+        endedAt={latest?.endedAt ?? null}
+        attemptCount={analyzeStage.attempts.length}
+      />
+    );
+  } else {
+    content = (
+      <>
         <StageHeader
           title="Repository analysis"
-          stage="analyze"
           chips={
             techStack.length > 0
               ? [
@@ -115,8 +149,8 @@ export function AnalyzeRepositoryView({
 
         {isCompleted && !hasAny && (
           <div className="rounded-md border border-border-faint bg-surface-2 px-4 py-6 text-[13px] text-foreground-muted">
-            The agent returned an empty analysis. Check the Events tab for the
-            raw transcript.
+            The agent returned an empty analysis. Check the Activity tab for the
+            agent's raw output.
           </div>
         )}
 
@@ -173,7 +207,15 @@ export function AnalyzeRepositoryView({
             </ul>
           </Section>
         )}
+      </>
+    );
+  }
+
+  return (
+    <StageStatsContext.Provider value={stripValue}>
+      <div className={`min-h-0 flex-1 overflow-y-auto ${TAB_SCROLL_PADDING}`}>
+        <div className={`${TAB_CONTENT_WIDTH} pb-12`}>{content}</div>
       </div>
-    </div>
+    </StageStatsContext.Provider>
   );
 }

@@ -18,4 +18,6 @@ export interface StageTrackProps {
   onSelect?: (key: string) => void;
   list?: StageItem[];
   timings?: Partial<Record<string, string>>;
+  /** Per-stage retry count (attempts − 1); rows with >0 show a ↻N badge. */
+  retries?: Partial<Record<string, number>>;
 }

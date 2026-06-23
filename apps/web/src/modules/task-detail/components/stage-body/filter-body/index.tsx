@@ -66,7 +66,6 @@ export function FilterBody({ payload }: { payload: Record<string, unknown> }) {
     <div>
       <StageHeader
         title="Automated filter"
-        stage="filter"
         chips={[
           <Chip
             key="e"
