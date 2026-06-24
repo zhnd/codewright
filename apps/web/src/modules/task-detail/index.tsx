@@ -2,7 +2,6 @@
 
 import { GitBranch } from 'lucide-react';
 import { StatusChip } from '@/components/common/status-chip';
-import { Tally } from '@/components/common/tally';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageHeader } from '@/components/layout/page-header';
 import { ActivityView } from './components/activity-view';
@@ -110,7 +109,7 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
               </span>
             )}
           </div>
-          <div className="flex items-start justify-between gap-5">
+          <div className="flex items-center justify-between gap-5">
             <div className="min-w-0 flex-1">
               <h1 className="m-0 text-[15px] font-semibold leading-[1.35] tracking-normal text-foreground">
                 <button
@@ -125,11 +124,10 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
             </div>
             <div className="hidden items-stretch gap-0 rounded-sm border border-border bg-card md:flex">
               <HeroStat label="DURATION" value={detail.task.duration} />
-              <span className="my-2 w-px bg-border-faint" />
+              <span className="my-1.5 w-px bg-border-faint" />
               <HeroStat label="COST" value={detail.task.cost} />
             </div>
           </div>
-          <Tally className="mt-3" />
         </div>
 
         <div className="shrink-0 overflow-x-auto border-b border-border bg-card px-4 sm:px-6 lg:px-7">
