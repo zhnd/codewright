@@ -1,4 +1,6 @@
 import type { EventLevel, StageStatus, TaskStage } from '@codewright/domain';
+import { formatCostUsd, formatDuration } from '@/utils/format';
+import { dbStageToWebStage } from '@/utils/stages';
 import type {
   CostBreakdown,
   DiffFile,
@@ -409,16 +411,6 @@ function computeAgentTotals(events: ApiEvent[]): AgentTotals {
   return { totalCostUsd, totalInputTokens, totalOutputTokens, model };
 }
 
-// Server stage keys → web stage keys, for folding per-stage agent cost.
-const SERVER_TO_WEB_STAGE: Record<string, string> = {
-  ANALYSIS: 'analyze',
-  REPRODUCE: 'reproduce',
-  IMPLEMENT: 'implement',
-  FILTER: 'filter',
-  CRITIC: 'critic',
-  PR: 'pr',
-};
-
 /**
  * Per-stage agent cost rollup (model + tokens + cost), summed across each
  * stage's attempts. Keyed by web stage key. Stages without agents (FILTER,
@@ -429,7 +421,7 @@ function computeStageCosts(events: ApiEvent[]): Record<string, StageCostView> {
   const out: Record<string, StageCostView> = {};
   for (const e of events) {
     if (e.kind !== 'STAGE') continue;
-    const key = SERVER_TO_WEB_STAGE[e.stageKey.toUpperCase()];
+    const key = dbStageToWebStage(e.stageKey);
     if (!key) continue;
     const cur = out[key] ?? {
       model: null,
@@ -461,33 +453,10 @@ function formatTaskDuration(
   const start = new Date(startedAt).getTime();
   const end = completedAt ? new Date(completedAt).getTime() : Date.now();
   const ms = Math.max(0, end - start);
-  const formatted = formatActivityDuration(ms);
+  const formatted = formatDuration(ms);
   // Trailing dot suffix communicates "still ticking" without forcing
   // continuous re-render.
   return status === 'RUNNING' ? `${formatted}+` : formatted;
-}
-
-/** Smart-precision USD formatter. Sub-cent amounts keep 4 decimals so
- *  small agent runs don't all round to "$0.00". */
-function formatCostUsd(usd: number): string {
-  if (usd <= 0) return '$0';
-  if (usd < 0.01) return `$${usd.toFixed(4)}`;
-  if (usd < 1) return `$${usd.toFixed(3)}`;
-  return `$${usd.toFixed(2)}`;
-}
-
-function formatActivityDuration(ms: number): string {
-  const total = Math.round(ms);
-  if (total < 1000) return `${total}ms`;
-  const totalSeconds = Math.round(total / 1000);
-  if (totalSeconds < 60) return `${totalSeconds}s`;
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  if (hours > 0) {
-    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-  }
-  return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
 }
 
 // ── Sub-mappers ──────────────────────────────────────────────

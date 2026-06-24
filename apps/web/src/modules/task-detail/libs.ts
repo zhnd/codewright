@@ -1,4 +1,5 @@
 import type { StageStatus } from '@/components/common/stage-track';
+import { formatDuration } from '@/utils/format';
 import type { TimelineEvent } from './types';
 
 /** Normalize backend stage status strings to internal `StageStatus`. */
@@ -38,7 +39,7 @@ export function computeStageTimings(
     if (list.length < 2) continue;
     const first = new Date(list[0].timestamp).getTime();
     const last = new Date(list[list.length - 1].timestamp).getTime();
-    out[normalizeStageKey(stage)] = formatDurationMs(last - first);
+    out[normalizeStageKey(stage)] = formatDuration(last - first);
   }
   return out;
 }
@@ -53,20 +54,5 @@ export function computeHitlWaited(
   if (!anchor) return null;
   const elapsed = Date.now() - new Date(anchor.timestamp).getTime();
   if (elapsed < 1000) return null;
-  return formatDurationMs(elapsed);
-}
-
-export function formatDurationMs(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  const s = Math.floor(ms / 1000);
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  const rem = s % 60;
-  return `${m}m ${rem.toString().padStart(2, '0')}s`;
-}
-
-export function formatTokens(n: number): string {
-  if (!n) return '—';
-  if (n < 1000) return `${n}`;
-  return `${(n / 1000).toFixed(1)}k`;
+  return formatDuration(elapsed);
 }

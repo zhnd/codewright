@@ -230,18 +230,6 @@ export function computeUsage(rows: AgentMessageRow[]): UsageTotals {
   return totals;
 }
 
-export function formatCostUsd(cost: number): string {
-  if (cost === 0) return '$0';
-  if (cost < 0.01) return `$${cost.toFixed(4)}`;
-  return `$${cost.toFixed(2)}`;
-}
-
-export function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
-  return String(n);
-}
-
 /** Pretty-print a tool input payload as indented JSON (best-effort). */
 export function formatInputJson(input: unknown): string {
   try {

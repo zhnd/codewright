@@ -19,7 +19,10 @@ import { sumStageCost } from '../../utils/stage-cost.js';
 import { runAnalyze } from './phases/analyze.js';
 import { runImplement } from './phases/implement.js';
 import { main, sandboxAgent, sandboxInfra } from './proxies.js';
-import { buildPrStageInput, buildReproduceStageInput } from './transformer.js';
+import {
+  buildPrStageInput,
+  buildReproduceStageInput,
+} from './transformer/index.js';
 
 // ── Signal ───────────────────────────────────────────────────────────
 

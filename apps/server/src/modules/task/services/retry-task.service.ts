@@ -1,12 +1,12 @@
 import type { Prisma, PrismaClient, TaskType } from '@codewright/database';
-import { createTemporalClient, TASK_QUEUE } from '@codewright/workflow';
+import { type createTemporalClient, TASK_QUEUE } from '@codewright/workflow';
 import type { User } from 'better-auth';
 import {
   AppError,
   NotFoundError,
   UnauthorizedError,
 } from '../../../infrastructure/errors/app-error.js';
-import { log } from '../../../logger.js';
+import { startTaskWorkflow } from './shared/start-task-workflow.js';
 
 interface TaskQuery {
   include?: Prisma.TaskInclude;
@@ -72,42 +72,24 @@ export class RetryTaskService {
       },
     });
 
-    let workflowId: string;
-    try {
-      const client = await createTemporalClient();
-      const handle = await this.startWorkflow(
-        client,
-        newTask.id,
-        original.type,
-        original.input,
-        project,
-        user.id
-      );
-      workflowId = handle.workflowId;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      log.error(
-        { err, taskId: newTask.id, retryOf: taskId },
-        'workflow start failed during retry'
-      );
-      await this.prisma.task.update({
-        where: { id: newTask.id },
-        data: {
-          status: 'FAILED',
-          error: `Failed to start retry workflow: ${message}`,
-        },
-      });
-      throw new AppError(
+    return startTaskWorkflow({
+      prisma: this.prisma,
+      query,
+      taskId: newTask.id,
+      logFields: { retryOf: taskId },
+      logMessage: 'workflow start failed during retry',
+      taskErrorPrefix: 'Failed to start retry workflow',
+      userErrorMessage:
         'Could not start retry workflow — please try again shortly.',
-        'WORKFLOW_START_FAILED',
-        503
-      );
-    }
-
-    return this.prisma.task.update({
-      ...query,
-      where: { id: newTask.id },
-      data: { workflowId },
+      start: (client) =>
+        this.startWorkflow(
+          client,
+          newTask.id,
+          original.type,
+          original.input,
+          project,
+          user.id
+        ),
     });
   }
 

@@ -36,7 +36,7 @@ import {
   memoFromHitlRejection,
   type SampleSummary,
   selectByExecution,
-} from '../transformer.js';
+} from '../transformer/index.js';
 
 /**
  * Implement phase with best-of-N sampling and final HITL gate.

@@ -1,5 +1,9 @@
 import { Client } from 'pg';
 import { log } from '../../logger.js';
+import {
+  debouncedSubscription,
+  type Subscriber,
+} from './debounced-subscription.js';
 
 /**
  * Postgres LISTEN-backed pub/sub for task events. One long-lived
@@ -13,8 +17,6 @@ import { log } from '../../logger.js';
 
 const CHANNEL = 'codewright_task_events';
 const DEBOUNCE_MS = 250;
-
-type Subscriber = () => void;
 
 class TaskPubSub {
   private ready: Promise<void> | null = null;
@@ -70,126 +72,30 @@ class TaskPubSub {
 
   /**
    * Returns an async iterator that yields each time a NOTIFY arrives
-   * for the given taskId. Trailing-debounced at 250 ms per subscriber
-   * so tool-storms collapse.
-   *
-   * A `pending` flag bridges the window between yields: if a NOTIFY
-   * fires while the consumer is still processing the previous yield,
-   * `resolveNext` is null and the naive approach would drop the event.
-   * Instead we set `pending = true` so the next iteration yields
-   * immediately without awaiting.
+   * for the given taskId. Debounced at 250 ms per subscriber so
+   * tool-storms collapse.
    */
   async *iterate(taskId: string, signal?: AbortSignal): AsyncIterable<void> {
     await this.ensureReady();
-
-    let resolveNext: (() => void) | null = null;
-    let pendingTimer: ReturnType<typeof setTimeout> | null = null;
-    let pending = false;
-    let closed = false;
-
-    const fire: Subscriber = () => {
-      if (closed) return;
-      if (pendingTimer) return;
-      pendingTimer = setTimeout(() => {
-        pendingTimer = null;
-        pending = true;
-        const r = resolveNext;
-        resolveNext = null;
-        r?.();
-      }, DEBOUNCE_MS);
-    };
-
-    let set = this.subscribers.get(taskId);
-    if (!set) {
-      set = new Set();
-      this.subscribers.set(taskId, set);
-    }
-    set.add(fire);
-
-    const cleanup = () => {
-      closed = true;
-      set?.delete(fire);
-      if (set?.size === 0) this.subscribers.delete(taskId);
-      if (pendingTimer) clearTimeout(pendingTimer);
-      resolveNext?.();
-    };
-    signal?.addEventListener('abort', cleanup);
-
-    try {
-      while (!closed && !(signal?.aborted ?? false)) {
-        if (!pending) {
-          await new Promise<void>((r) => {
-            resolveNext = r;
-          });
-        }
-        if (closed) break;
-        pending = false;
-        yield;
-      }
-    } finally {
-      cleanup();
-    }
+    yield* debouncedSubscription(this.subscribers, taskId, DEBOUNCE_MS, signal);
   }
 
   /**
    * Like {@link iterate} but keyed by userId — yields whenever ANY of the
    * user's tasks changes. Backs the tasks-list subscription so the list
-   * refreshes on status/stage changes instead of polling. Same
-   * debounce + pending-bridge semantics.
+   * refreshes on status/stage changes instead of polling.
    */
   async *iterateUser(
     userId: string,
     signal?: AbortSignal
   ): AsyncIterable<void> {
     await this.ensureReady();
-
-    let resolveNext: (() => void) | null = null;
-    let pendingTimer: ReturnType<typeof setTimeout> | null = null;
-    let pending = false;
-    let closed = false;
-
-    const fire: Subscriber = () => {
-      if (closed) return;
-      if (pendingTimer) return;
-      pendingTimer = setTimeout(() => {
-        pendingTimer = null;
-        pending = true;
-        const r = resolveNext;
-        resolveNext = null;
-        r?.();
-      }, DEBOUNCE_MS);
-    };
-
-    let set = this.userSubscribers.get(userId);
-    if (!set) {
-      set = new Set();
-      this.userSubscribers.set(userId, set);
-    }
-    set.add(fire);
-
-    const cleanup = () => {
-      closed = true;
-      set?.delete(fire);
-      if (set?.size === 0) this.userSubscribers.delete(userId);
-      if (pendingTimer) clearTimeout(pendingTimer);
-      resolveNext?.();
-    };
-    signal?.addEventListener('abort', cleanup);
-
-    try {
-      while (!closed && !(signal?.aborted ?? false)) {
-        if (!pending) {
-          await new Promise<void>((r) => {
-            resolveNext = r;
-          });
-        }
-        if (closed) break;
-        pending = false;
-        yield;
-      }
-    } finally {
-      cleanup();
-    }
+    yield* debouncedSubscription(
+      this.userSubscribers,
+      userId,
+      DEBOUNCE_MS,
+      signal
+    );
   }
 }
 

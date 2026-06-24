@@ -1,60 +1,8 @@
 import { RotateCcw } from 'lucide-react';
-import { createContext, useContext } from 'react';
-import type { StageCostView } from '@/modules/tasks/types';
-import { STAGE_LABELS } from '../../constants';
-import { formatTokens } from '../../libs';
-import type { StageKey } from '../../types';
-import { FailurePanel } from '../failure-panel';
-
-/**
- * Per-stage agent stats (model + tokens + cost) plus the stage's wall time,
- * surfaced as a strip under each stage heading. Provided by the per-task-type
- * view (it knows the selected stage) and consumed by `StageHeader`, so every
- * stage body shows it without threading the data through each one.
- */
-export interface StageStripData extends StageCostView {
-  /** Pre-formatted stage duration (matches the pipeline rail), or null. */
-  duration: string | null;
-}
-
-export const StageStatsContext = createContext<StageStripData | null>(null);
-
-function StageStats() {
-  const data = useContext(StageStatsContext);
-  if (!data) return null;
-  const { model, inputTokens, outputTokens, costUsd, duration } = data;
-
-  const parts: { key: string; node: React.ReactNode }[] = [];
-  if (model)
-    parts.push({
-      key: 'm',
-      node: <span className="text-foreground-muted">{model}</span>,
-    });
-  if (inputTokens > 0 || outputTokens > 0)
-    parts.push({
-      key: 't',
-      node: (
-        <span>
-          {formatTokens(inputTokens)} in / {formatTokens(outputTokens)} out
-        </span>
-      ),
-    });
-  if (costUsd > 0)
-    parts.push({ key: 'c', node: <span>${costUsd.toFixed(2)}</span> });
-  if (duration) parts.push({ key: 'd', node: <span>{duration}</span> });
-  if (parts.length === 0) return null;
-
-  return (
-    <div className="mt-1.5 flex flex-wrap items-center gap-2 font-mono text-[10.5px] tabular-nums text-foreground-subtle">
-      {parts.map((p, i) => (
-        <span key={p.key} className="inline-flex items-center gap-2">
-          {i > 0 && <span className="text-foreground-faint">·</span>}
-          {p.node}
-        </span>
-      ))}
-    </div>
-  );
-}
+import { STAGE_LABELS } from '../../../constants';
+import type { StageKey } from '../../../types';
+import { FailurePanel } from '../../failure-panel';
+import { StageHeader } from './stage-header';
 
 /**
  * Empty-state message for stages that haven't run yet (`pending`) or
@@ -75,49 +23,6 @@ export function StagePlaceholder({
           ? "hasn't started yet."
           : 'was skipped because an earlier stage failed.'}
       </div>
-    </div>
-  );
-}
-
-/**
- * Stage-body header: heading + optional chip row. The selected stage is
- * already named in the pipeline rail, so the body doesn't repeat it.
- */
-export function StageHeader({
-  title,
-  chips,
-}: {
-  title: string;
-  chips?: React.ReactNode;
-}) {
-  return (
-    <div className="mb-5">
-      <h2 className="m-0 text-[20px] font-semibold leading-[1.15] tracking-normal text-foreground">
-        {title}
-      </h2>
-      <StageStats />
-      {chips && <div className="mt-2.5 flex flex-wrap gap-3.5">{chips}</div>}
-    </div>
-  );
-}
-
-/**
- * Labeled section block within a stage body. Mono uppercase eyebrow +
- * children container with bottom margin.
- */
-export function Section({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mb-6">
-      <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.04em] text-foreground-subtle">
-        {label}
-      </div>
-      {children}
     </div>
   );
 }

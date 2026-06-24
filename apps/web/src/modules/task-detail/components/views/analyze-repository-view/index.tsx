@@ -1,7 +1,7 @@
 import { Chip } from '@/components/common/chip';
 import { Markdown } from '@/components/common/markdown';
+import { formatDuration } from '@/utils/format';
 import { TAB_CONTENT_WIDTH, TAB_SCROLL_PADDING } from '../../../constants';
-import { formatDurationMs } from '../../../libs';
 import type { StageData, TaskDetail } from '../../../types';
 import { latestOutput } from '../../stage-body/libs';
 import {
@@ -62,7 +62,7 @@ export function AnalyzeRepositoryView({
     ? {
         ...stageCost,
         duration:
-          analyzeDurationMs > 0 ? formatDurationMs(analyzeDurationMs) : null,
+          analyzeDurationMs > 0 ? formatDuration(analyzeDurationMs) : null,
       }
     : null;
 

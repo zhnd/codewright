@@ -1,12 +1,18 @@
-import { createHash, randomUUID } from 'node:crypto';
-import { promises as fs } from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
+import { createHash } from 'node:crypto';
 import type { GitHostProvider } from '@codewright/githost';
 import Docker from 'dockerode';
 import { log } from '../logger.js';
 import type { Source } from '../types.js';
-import { buildCredentialHelper } from './credential-broker.js';
+import { withLock } from './build-lock.js';
+import {
+  commitBuilder,
+  gitConfigCredentialHelper,
+  hashRepoUrl,
+  imageAge,
+  shellArg,
+  startBuilder,
+  writeNpmrc,
+} from './builder.js';
 import {
   BUILDER_LABEL,
   BUILDER_LABEL_VALUE,
@@ -18,11 +24,8 @@ import {
   SANDBOX_BASE_IMAGE,
   SETUP_COMMAND_TIMEOUT_MS,
 } from './defaults.js';
-import { DockerSandbox } from './sandbox.js';
 import { detectSetup, type SetupPlan } from './setup-detector.js';
 
-const LOCK_ROOT =
-  process.env.LOCK_ROOT ?? path.join(os.tmpdir(), 'codewright', 'locks');
 const RAW_REPO = 'codewright/repo-raw';
 const SETUP_REPO = 'codewright/repo';
 const TIER_RAW = 'raw';
@@ -312,180 +315,4 @@ async function buildSetup(
   } finally {
     await builder.stop();
   }
-}
-
-/**
- * Drop a project-supplied `.npmrc` into the builder's `$HOME` so pnpm/npm
- * pick it up during install. Heredoc delimiter is randomized to avoid
- * collisions with user content; single-quoted to suppress shell expansion
- * so `${CODEWRIGHT_GIT_TOKEN}` and friends survive verbatim into the file.
- * pnpm itself does the env-var substitution at install time.
- */
-async function writeNpmrc(
-  builder: DockerSandbox,
-  content: string
-): Promise<void> {
-  const eof = `CODEWRIGHT_NPMRC_EOF_${randomUUID().replace(/-/g, '')}`;
-  const result = await builder.exec(
-    `cat > /root/.npmrc <<'${eof}'\n${content}\n${eof}`,
-    { cwd: DEFAULT_WORKING_DIRECTORY, timeoutMs: 5_000 }
-  );
-  if (!result.success) {
-    throw new Error(
-      `Failed to write .npmrc: ${result.stderr || result.stdout}`
-    );
-  }
-}
-
-async function startBuilder(
-  docker: Docker,
-  image: string,
-  gitToken?: string,
-  gitProvider?: GitHostProvider
-): Promise<DockerSandbox> {
-  const container = await docker.createContainer({
-    Image: image,
-    Cmd: ['sleep', 'infinity'],
-    WorkingDir: DEFAULT_WORKING_DIRECTORY,
-    Labels: { [BUILDER_LABEL]: BUILDER_LABEL_VALUE },
-    HostConfig: {
-      NetworkMode: 'bridge',
-      Memory: 2048 * 1024 * 1024,
-      CpuPeriod: 100_000,
-      CpuQuota: 200_000, // 2 vCPUs for faster install
-      Init: true,
-    },
-  });
-  await container.start();
-  return new DockerSandbox({
-    docker,
-    container,
-    workingDirectory: DEFAULT_WORKING_DIRECTORY,
-    gitToken,
-    gitProvider,
-  });
-}
-
-async function gitConfigCredentialHelper(
-  sandbox: DockerSandbox
-): Promise<void> {
-  await sandbox.exec(
-    `git config --global 'credential.helper' ${shellArg(buildCredentialHelper(sandbox.gitProvider))}`,
-    { cwd: DEFAULT_WORKING_DIRECTORY, timeoutMs: 5_000 }
-  );
-}
-
-async function commitBuilder(
-  docker: Docker,
-  sandbox: DockerSandbox,
-  tag: string,
-  tier: string
-): Promise<void> {
-  const [repo, tagName] = tag.split(':');
-  const container = docker.getContainer(sandbox.id);
-  await container.commit({
-    repo,
-    tag: tagName,
-    changes: [
-      `LABEL ${MANAGED_IMAGE_LABEL}=true`,
-      `LABEL codewright.tier=${tier}`,
-    ].join('\n'),
-  });
-}
-
-async function imageAge(docker: Docker, tag: string): Promise<number | null> {
-  try {
-    const info = await docker.getImage(tag).inspect();
-    const created = Date.parse(info.Created);
-    if (!Number.isFinite(created)) return null;
-    return Date.now() - created;
-  } catch {
-    return null;
-  }
-}
-
-function hashRepoUrl(url: string): string {
-  const normalized = url
-    .replace(/\.git$/i, '')
-    .replace(/^git@github\.com:/, 'https://github.com/')
-    .toLowerCase();
-  return createHash('sha256').update(normalized).digest('hex').slice(0, 16);
-}
-
-function shellArg(input: string): string {
-  return `'${input.replace(/'/g, `'\\''`)}'`;
-}
-
-// ── Build lock ───────────────────────────────────────────────────────────
-//
-// In-process map guarantees a single build per key within this worker;
-// flock on host fs serializes across multiple workers on the same host.
-
-const inflight = new Map<string, Promise<void>>();
-
-async function withLock(key: string, fn: () => Promise<void>): Promise<void> {
-  const existing = inflight.get(key);
-  if (existing) {
-    await existing;
-    // Re-enter after the other caller finished — they may have done the
-    // work we were about to do, so the caller's own age/hit check will
-    // short-circuit on the next iteration.
-    return;
-  }
-
-  const promise = (async () => {
-    const release = await acquireHostLock(key);
-    try {
-      await fn();
-    } finally {
-      release();
-    }
-  })();
-
-  inflight.set(key, promise);
-  try {
-    await promise;
-  } finally {
-    inflight.delete(key);
-  }
-}
-
-// Best-effort host-level lock using O_EXCL file creation + retry. Good
-// enough for the rare case of two workers racing; not meant to be strictly
-// correct under kernel crash.
-async function acquireHostLock(key: string): Promise<() => void> {
-  await fs.mkdir(LOCK_ROOT, { recursive: true });
-  const lockPath = path.join(LOCK_ROOT, `${key}.lock`);
-  const start = Date.now();
-  const timeoutMs = 30 * 60 * 1000;
-
-  while (true) {
-    try {
-      const handle = await fs.open(lockPath, 'wx');
-      await handle.write(`${process.pid}\n`);
-      await handle.close();
-      return () => {
-        fs.unlink(lockPath).catch(() => {});
-      };
-    } catch (err: unknown) {
-      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') {
-        throw err;
-      }
-      // Stale lock detection: if the lock file is very old, assume the
-      // holder crashed and take it over.
-      const stat = await fs.stat(lockPath).catch(() => null);
-      if (stat && Date.now() - stat.mtimeMs > timeoutMs) {
-        await fs.unlink(lockPath).catch(() => {});
-        continue;
-      }
-      if (Date.now() - start > timeoutMs) {
-        throw new Error(`Timed out waiting for lock: ${key}`);
-      }
-      await sleep(500);
-    }
-  }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

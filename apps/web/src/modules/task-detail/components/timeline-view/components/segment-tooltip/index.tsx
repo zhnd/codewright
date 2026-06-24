@@ -1,10 +1,6 @@
+import { formatCostUsd, formatDuration, formatTokens } from '@/utils/format';
 import { STAGE_LIST, STATUS_COLOR } from '../../constants';
-import {
-  formatCostUsd,
-  formatDuration,
-  formatStartClock,
-  formatTokens,
-} from '../../libs';
+import { formatStartClock } from '../../libs';
 import type { TimelineSegment } from '../../types';
 import type { HoverState } from '../../use-service';
 

@@ -1,23 +1,17 @@
 import type { AuthProvider, Prisma, PrismaClient } from '@codewright/database';
-import { parseRepoUrl } from '@codewright/githost';
 import { encrypt, getEncryptionKey } from '@codewright/shared';
 import type { User } from 'better-auth';
 import {
   NotFoundError,
   UnauthorizedError,
-  ValidationError,
 } from '../../../infrastructure/errors/app-error.js';
 import type { UpdateProjectInput } from '../dto/update-project.input.js';
+import { assertRepoUrlMatchesProvider } from './shared/repo-url.js';
 
 interface ProjectQuery {
   include?: Prisma.ProjectInclude;
   select?: Prisma.ProjectSelect;
 }
-
-const PROVIDER_TO_PRISMA: Record<'github' | 'cnb', AuthProvider> = {
-  github: 'GITHUB',
-  cnb: 'CNB',
-};
 
 export class UpdateProjectService {
   constructor(private prisma: PrismaClient) {}
@@ -61,20 +55,7 @@ export class UpdateProjectService {
     const finalProvider: AuthProvider =
       input.authProvider ?? project.authProvider;
     if (input.repositoryUrl != null || input.authProvider != null) {
-      let parsed: ReturnType<typeof parseRepoUrl>;
-      try {
-        parsed = parseRepoUrl(finalUrl);
-      } catch (err) {
-        throw new ValidationError(
-          err instanceof Error ? err.message : 'Invalid repository URL'
-        );
-      }
-      const expected = PROVIDER_TO_PRISMA[parsed.provider];
-      if (expected !== finalProvider) {
-        throw new ValidationError(
-          `Repository URL host (${parsed.host}) does not match authProvider (${finalProvider})`
-        );
-      }
+      assertRepoUrlMatchesProvider(finalUrl, finalProvider);
     }
 
     if (input.credentials) {

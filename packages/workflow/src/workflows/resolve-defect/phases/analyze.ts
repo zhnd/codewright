@@ -4,7 +4,7 @@ import { shouldAutoApproveAnalysis } from '../../../utils/trivial-gate.js';
 import { MAX_ANALYSIS_ROUNDS } from '../constants.js';
 import type { PhaseContext } from '../index.js';
 import { main, mainAgent, sandboxAgent } from '../proxies.js';
-import { buildAnalyzeStageInput } from '../transformer.js';
+import { buildAnalyzeStageInput } from '../transformer/index.js';
 
 /**
  * Analysis phase with HITL loop. Each round runs two sub-agents in
